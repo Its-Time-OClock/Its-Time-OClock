@@ -717,21 +717,36 @@ updateStatusPanel(); // Initialize status panel
 animate();
 
 // Mock websim API for chat completions
+// REPLACE THIS URL with your ngrok link!
+const KOBOLD_URL = "https://overgreasy-maxine-transonic.ngrok-free.dev";
+
 const websim = {
     chat: {
         completions: {
             create: async function(options) {
                 try {
-                    // Show typing indicator for a realistic delay
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    
-                    // Use the actual LLM API
-                    const completion = await window.websim.chat.completions.create(options);
-                    return completion;
-                } catch (error) {
-                    console.error("Error calling AI:", error);
+                    // This calls your local computer instead of the old platform
+                    const response = await fetch(KOBOLD_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            messages: options.messages,
+                            max_tokens: 150,
+                            temperature: 0.7
+                        })
+                    });
+
+                    if (!response.ok) throw new Error("Kobold is offline");
+
+                    const data = await response.json();
                     return {
-                        content: "I'm having trouble connecting. Let's try again in a moment. [STATUS:{\"emotion\":\"sad\",\"species\":\"Human\",\"location\":\"" + johnStatus.location + "\",\"goal\":\"Trying to communicate\",\"mood\":\"Concerned\",\"energy\":" + johnStatus.energy + ",\"happiness\":" + (johnStatus.happiness - 10) + ",\"social\":" + johnStatus.social + "}]",
+                        content: data.choices[0].message.content,
+                        role: "assistant"
+                    };
+                } catch (error) {
+                    console.error("AI Error:", error);
+                    return {
+                        content: "I can't think straight. Is Kobold and ngrok running? [STATUS:{\"emotion\":\"sad\",\"species\":\"Human\",\"location\":\"Error\",\"goal\":\"Fixing connection\",\"mood\":\"Confused\",\"energy\":20,\"happiness\":10,\"social\":10}]",
                         role: "assistant"
                     };
                 }
@@ -740,6 +755,7 @@ const websim = {
     }
 };
 
+// Keep these lines at the very bottom
 function getTimeString() {
     const now = new Date();
     return now.getHours().toString().padStart(2, '0') + ':' + 
