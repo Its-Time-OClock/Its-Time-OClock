@@ -486,42 +486,40 @@ async function sendMessage() {
         conversationHistory = conversationHistory.slice(-10);
         
         // Get response from AI
-       // 1. Change this to your actual ngrok or tunnel URL!
-const KOBOLD_URL = "https://your-ngrok-url-here.ngrok-free.app/v1/chat/completions";
+       // REPLACE THIS URL with the one ngrok gives you!
+const KOBOLD_URL = "https://your-ngrok-id-here.ngrok-free.app/v1/chat/completions";
 
 const websim = {
     chat: {
         completions: {
             create: async function(options) {
                 try {
-                    // Show typing indicator
-                    await new Promise(resolve => setTimeout(resolve, 500));
-
-                    // Call your local KoboldCPP
+                    // This sends the data to your IRL computer
                     const response = await fetch(KOBOLD_URL, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: { 
+                            "Content-Type": "application/json"
+                        },
                         body: JSON.stringify({
-                            model: "koboldcpp",
-                            // We pass the messages (including the system prompt) to your local AI
-                            messages: options.messages, 
-                            max_tokens: 200,
+                            messages: options.messages, // This keeps the John Timbles personality instructions
+                            max_tokens: 150,
                             temperature: 0.7
                         })
                     });
 
+                    if (!response.ok) throw new Error("Local AI is offline");
+
                     const data = await response.json();
                     
-                    // Return the response in the format the rest of your script expects
+                    // This returns the message back to your game
                     return {
                         content: data.choices[0].message.content,
                         role: "assistant"
                     };
-
                 } catch (error) {
-                    console.error("Kobold Error:", error);
+                    console.error("Kobold Connection Error:", error);
                     return {
-                        content: "I'm having trouble connecting to your local AI. Is KoboldCPP and ngrok running?",
+                        content: "I can't feel my brain... (Make sure KoboldCPP and ngrok are running!) [STATUS:{\"emotion\":\"sad\",\"species\":\"Human\",\"location\":\"Limbo\",\"goal\":\"Reconnecting\",\"mood\":\"Lost\",\"energy\":10,\"happiness\":10,\"social\":10}]",
                         role: "assistant"
                     };
                 }
@@ -529,69 +527,6 @@ const websim = {
         }
     }
 };
-        
-        // Hide typing indicator
-        typingIndicator.classList.add('hidden');
-        
-        let response = completion.content;
-        conversationHistory.push(completion);
-        
-        // Parse status from response
-        let emotion = "default";
-        let statusMatch = response.match(/\[STATUS:(\{.*?\})\]/);
-        
-        if (statusMatch) {
-            try {
-                let statusData = JSON.parse(statusMatch[1]);
-                emotion = statusData.emotion || "default";
-                
-                // Update John's status
-                if (statusData.species) johnStatus.species = statusData.species;
-                if (statusData.location) johnStatus.location = statusData.location;
-                if (statusData.goal) johnStatus.goal = statusData.goal;
-                if (statusData.mood) johnStatus.mood = statusData.mood;
-                if (statusData.energy !== undefined) johnStatus.energy = statusData.energy;
-                if (statusData.happiness !== undefined) johnStatus.happiness = statusData.happiness;
-                if (statusData.social !== undefined) johnStatus.social = statusData.social;
-                
-                // Update status panel
-                updateStatusPanel();
-                
-                // Remove status data from display
-                response = response.replace(/\[STATUS:(\{.*?\})\]/, '').trim();
-            } catch (e) {
-                console.error("Error parsing status data:", e);
-            }
-        } else {
-            // Legacy emotion parsing
-            const emotionMatch = response.match(/\[emotion:(happy|sad|surprised|angry|thinking|default)\]/i);
-            if (emotionMatch) {
-                emotion = emotionMatch[1].toLowerCase();
-                // Remove emotion tag from display
-                response = response.replace(/\[emotion:(happy|sad|surprised|angry|thinking|default)\]/i, '').trim();
-            }
-        }
-        
-        // Additional cleanup to remove any remaining code blocks or JSON formatting
-        response = response.replace(/```json[\s\S]*?```/g, '').trim();
-        response = response.replace(/```[\s\S]*?```/g, '').trim();
-        
-        // Display John's response with a slight delay for realism
-        setTimeout(() => {
-            displayMessage(response, 'john');
-            // Set character expression
-            setExpression(emotion);
-        }, 300);
-        
-    } catch (error) {
-        // Hide typing indicator
-        typingIndicator.classList.add('hidden');
-        
-        console.error("Error getting response:", error);
-        displayMessage("Sorry, I'm having trouble responding right now.", 'john');
-        setExpression("sad");
-    }
-}
 
 function displayMessage(content, sender) {
     const messageElement = document.createElement('div');
