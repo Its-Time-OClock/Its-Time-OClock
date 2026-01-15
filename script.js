@@ -487,7 +487,7 @@ async function sendMessage() {
         
         // Get response from AI
        // REPLACE THIS URL with the one ngrok gives you!
-const KOBOLD_URL = "https://your-ngrok-id-here.ngrok-free.app/v1/chat/completions";
+const KOBOLD_URL = "https://overgreasy-maxine-transonic.ngrok-free.dev";
 
 const websim = {
     chat: {
