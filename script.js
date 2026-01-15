@@ -486,21 +486,49 @@ async function sendMessage() {
         conversationHistory = conversationHistory.slice(-10);
         
         // Get response from AI
-        const completion = await websim.chat.completions.create({
-            messages: [
-                {
-                    role: "system",
-                    content: `You are roleplaying as John Timbles, a complex 3D human character with emotions and expressions.
-                    You respond in the first person AS John Timbles, never acknowledging that you're an AI.
-                    Keep responses under 100 words and be emotionally reactive.
-                    After your response, include JSON data about John's state in this format:
-                    [STATUS:{"emotion":"happy","species":"Human","location":"Home","goal":"Relaxing","mood":"Content","energy":80,"happiness":70,"social":60}]
-                    Where emotion is one of: happy, sad, surprised, angry, thinking, default
-                    Species, location, goal, and mood are strings. Energy, happiness, social are numbers 0-100.`
-                },
-                ...conversationHistory
-            ]
-        });
+       // 1. Change this to your actual ngrok or tunnel URL!
+const KOBOLD_URL = "https://your-ngrok-url-here.ngrok-free.app/v1/chat/completions";
+
+const websim = {
+    chat: {
+        completions: {
+            create: async function(options) {
+                try {
+                    // Show typing indicator
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
+                    // Call your local KoboldCPP
+                    const response = await fetch(KOBOLD_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            model: "koboldcpp",
+                            // We pass the messages (including the system prompt) to your local AI
+                            messages: options.messages, 
+                            max_tokens: 200,
+                            temperature: 0.7
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    // Return the response in the format the rest of your script expects
+                    return {
+                        content: data.choices[0].message.content,
+                        role: "assistant"
+                    };
+
+                } catch (error) {
+                    console.error("Kobold Error:", error);
+                    return {
+                        content: "I'm having trouble connecting to your local AI. Is KoboldCPP and ngrok running?",
+                        role: "assistant"
+                    };
+                }
+            }
+        }
+    }
+};
         
         // Hide typing indicator
         typingIndicator.classList.add('hidden');
