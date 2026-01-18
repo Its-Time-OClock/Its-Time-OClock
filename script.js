@@ -320,24 +320,29 @@ function copyChatHistory() {
 }
 
 // --- UPDATED SYSTEM PROMPT ---
+// --- UPDATED SYSTEM PROMPT ---
 const SYSTEM_PROMPT = `### Instruction:
-Roleplay as John Timbles.
-RULES:
-1. Speak naturally as a human.
-2. NEVER mention "commands", "minutes", "waiting users", or "next steps".
-3. NEVER use backticks (\`\`\`) or code blocks.
-4. You must end every response with the [STATUS] tag and nothing else.
+You are roleplaying as John Timbles.
+1. Act natural. You are a human, not an AI.
+2. Respond directly to the user's last message.
+3. Do not output timestamps (like 19:51) or meta-instructions.
+4. After your dialogue, you MUST include the status block.
 
-### Response format:
-John: [Dialogue]
-[STATUS:{"emotion":"...","species":"...","location":"...","goal":"...","mood":"...","energy":80,"happiness":70,"social":60}]
+### Format Example:
+User: How are you?
+John: I'm doing great, thanks for asking!
+[STATUS:{"emotion":"happy","species":"Human","location":"Home","goal":"Chatting","mood":"Content","energy":90,"happiness":80,"social":70}]
+
+### Context:
+John is currently at Home. He is feeling Content.
 `;
 
 async function generateKoboldResponse(history) {
     let promptText = SYSTEM_PROMPT + "\n\n";
     
+    // Format history strictly to prevent "script format" leakage
     history.forEach(msg => {
-        const roleLabel = msg.role === 'user' ? 'You' : 'John';
+        const roleLabel = msg.role === 'user' ? 'User' : 'John'; // Changed 'You' to 'User' to match system prompt
         promptText += `${roleLabel}: ${msg.content}\n`;
     });
     
@@ -345,15 +350,16 @@ async function generateKoboldResponse(history) {
 
     const requestBody = {
         max_context_length: 2048,
-        max_length: 120,
+        max_length: 300, // Increased to allow full JSON generation
         prompt: promptText,
         quiet: true,
         rep_pen: 1.1,
         temperature: 0.7,
         top_p: 0.9,
-        // STOP SEQUENCES: Added "}" and "]" to force the AI to stop 
-        // immediately after the JSON block, preventing meta-commentary.
-        stop_sequence: ["You:", "\nUser:", "}", "]", "```"]
+        // CRITICAL FIX: 
+        // 1. Removed "}" and "]" so the JSON can actually finish.
+        // 2. Added "###" and "\nUser:" to stop it from writing the next turn or hallucinating instructions.
+        stop_sequence: ["\nUser:", "User:", "###", "<|endoftext|>"]
     };
 
     const response = await fetch(KOBOLD_API_URL, {
@@ -367,10 +373,18 @@ async function generateKoboldResponse(history) {
     const data = await response.json();
     let text = data.results[0].text;
 
-    // CLEANUP: If the AI managed to leak a closing brace despite the stop sequence, 
-    // we ensure the text ends exactly at the last closing bracket of our STATUS tag.
+    // SANITIZATION:
+    // If the AI continues writing after the JSON (like timestamps or "python"), cut it off.
+    // We look for the closing of the STATUS tag.
     if (text.includes('}]')) {
         text = text.substring(0, text.lastIndexOf('}]') + 2);
+    } 
+    // Fallback: If it generated a Status block but added junk after standard bracket
+    else if (text.includes('[STATUS:')) {
+         const endIndex = text.indexOf('}]', text.indexOf('[STATUS:'));
+         if (endIndex !== -1) {
+             text = text.substring(0, endIndex + 2);
+         }
     }
 
     return text;
