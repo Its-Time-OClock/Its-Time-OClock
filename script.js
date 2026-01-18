@@ -15,7 +15,6 @@ const emojiPicker = document.getElementById('emoji-picker');
 const clearChatButton = document.getElementById('clear-chat');
 const emotionIcon = document.getElementById('emotion-icon');
 const emotionText = document.getElementById('emotion-text');
-
 const copyButton = document.getElementById('copy-chat');
 
 // Status panel elements
@@ -76,9 +75,6 @@ let expressions = {
 };
 
 let currentExpression = "default";
-let morphTargets = {};
-
-// Emotion icons map
 const emotionIcons = {
     happy: "😊",
     sad: "😢",
@@ -99,22 +95,18 @@ let johnStatus = {
     social: 60
 };
 
-// Update John's status panel
 function updateStatusPanel() {
     johnSpecies.textContent = johnStatus.species;
     johnLocation.textContent = johnStatus.location;
     johnGoal.textContent = johnStatus.goal;
     johnMood.textContent = johnStatus.mood;
-    
     energyBar.style.width = johnStatus.energy + '%';
     happinessBar.style.width = johnStatus.happiness + '%';
     socialBar.style.width = johnStatus.social + '%';
 }
 
-// Initialize emoji picker
 function initEmojiPicker() {
     const commonEmojis = ["😊", "😂", "❤️", "👍", "😎", "😢", "😡", "🎉", "🤔", "👋", "🙏", "🥺", "😍", "🤣", "😭", "✨", "🔥", "👀", "💯", "🤩", "🥰", "😇", "😬", "🙄", "😴", "😋", "😘", "💪", "🤗"];
-    
     commonEmojis.forEach(emoji => {
         const emojiItem = document.createElement('div');
         emojiItem.classList.add('emoji-item');
@@ -128,7 +120,6 @@ function initEmojiPicker() {
     });
 }
 
-// Toggle emoji picker visibility
 function toggleEmojiPicker(show) {
     if (show === undefined) {
         emojiPicker.classList.toggle('hidden');
@@ -137,7 +128,6 @@ function toggleEmojiPicker(show) {
     }
 }
 
-// Speech recognition setup
 let recognition;
 function setupSpeechRecognition() {
     if ('webkitSpeechRecognition' in window) {
@@ -145,21 +135,10 @@ function setupSpeechRecognition() {
         recognition.continuous = false;
         recognition.interimResults = false;
         recognition.lang = 'en-US';
-        
-        recognition.onstart = function() {
-            voiceButton.classList.add('recording');
-        };
-        
-        recognition.onresult = function(event) {
-            const transcript = event.results[0][0].transcript;
-            userInput.value = transcript;
-        };
-        
-        recognition.onend = function() {
-            voiceButton.classList.remove('recording');
-        };
-        
-        recognition.onerror = function(event) {
+        recognition.onstart = () => voiceButton.classList.add('recording');
+        recognition.onresult = (event) => { userInput.value = event.results[0][0].transcript; };
+        recognition.onend = () => voiceButton.classList.remove('recording');
+        recognition.onerror = (event) => {
             console.error('Speech recognition error', event.error);
             voiceButton.classList.remove('recording');
         };
@@ -168,7 +147,6 @@ function setupSpeechRecognition() {
     }
 }
 
-// Toggle speech recognition
 function toggleSpeechRecognition() {
     if (voiceButton.classList.contains('recording')) {
         recognition.stop();
@@ -177,10 +155,7 @@ function toggleSpeechRecognition() {
     }
 }
 
-// Placeholder function to load character model
-// In a real implementation, load a GLTF model with morph targets
 function loadCharacterModel() {
-    // Create a placeholder character geometry
     const geometry = new THREE.BoxGeometry(0.5, 0.8, 0.5);
     const material = new THREE.MeshStandardMaterial({ color: 0xbb4444 });
     character = new THREE.Mesh(geometry, material);
@@ -189,7 +164,6 @@ function loadCharacterModel() {
     character.receiveShadow = true;
     scene.add(character);
     
-    // Create a head
     const headGeometry = new THREE.SphereGeometry(0.25, 32, 32);
     const headMaterial = new THREE.MeshStandardMaterial({ color: 0xffcbb3 });
     const head = new THREE.Mesh(headGeometry, headMaterial);
@@ -198,26 +172,21 @@ function loadCharacterModel() {
     character.add(head);
     headBone = head;
     
-    // Add eyes
     const eyeGeometry = new THREE.SphereGeometry(0.05, 16, 16);
     const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x222222 });
-    
     const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
     leftEye.position.set(0.08, 0.05, 0.2);
     head.add(leftEye);
-    
     const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
     rightEye.position.set(-0.08, 0.05, 0.2);
     head.add(rightEye);
     
-    // Add mouth
     const mouthGeometry = new THREE.BoxGeometry(0.15, 0.03, 0.05);
     const mouthMaterial = new THREE.MeshBasicMaterial({ color: 0x222222 });
     const mouth = new THREE.Mesh(mouthGeometry, mouthMaterial);
     mouth.position.set(0, -0.1, 0.2);
     head.add(mouth);
     
-    // Create ground
     const groundGeometry = new THREE.CircleGeometry(3, 32);
     const groundMaterial = new THREE.MeshStandardMaterial({ color: 0xdadada });
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
@@ -226,11 +195,9 @@ function loadCharacterModel() {
     ground.receiveShadow = true;
     scene.add(ground);
     
-    // Simple animation
     animateCharacter();
 }
 
-// Simple breathing/idle animation
 function animateCharacter() {
     if (character) {
         gsap.to(character.position, {
@@ -243,21 +210,11 @@ function animateCharacter() {
     }
 }
 
-// Set character expression
 function setExpression(expression) {
-    if (!expressions[expression]) {
-        expression = "default";
-    }
-    
+    if (!expressions[expression]) expression = "default";
     currentExpression = expression;
-    
-    // Update emotion indicator
     emotionIcon.textContent = emotionIcons[expression] || emotionIcons.default;
     emotionText.textContent = expression;
-    
-    // In a real implementation, this would set morph target values
-    // Here we'll just rotate the head slightly based on expression
-    
     gsap.to(headBone.rotation, {
         x: expression === "sad" ? -0.2 : 
            expression === "happy" ? 0.1 : 
@@ -268,21 +225,18 @@ function setExpression(expression) {
     });
 }
 
-// Simple animation loop
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
 }
 
-// Handle window resize
 function handleResize() {
     camera.aspect = sceneContainer.clientWidth / sceneContainer.clientHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(sceneContainer.clientWidth, sceneContainer.clientHeight);
 }
 
-// Chat functionality
 let conversationHistory = [];
 
 function clearChat() {
@@ -294,491 +248,142 @@ function clearChat() {
 function copyChatHistory() {
     const textHistory = conversationHistory.map(msg => {
         const role = msg.role === 'user' ? 'You' : 'John';
-        // Clean up status markers
         let content = msg.content.replace(/\[STATUS:(\{.*?\})\]/g, '').trim();
-        content = content.replace(/\[emotion:(happy|sad|surprised|angry|thinking|default)\]/gi, '').trim();
         return `${role}: ${content}`;
     }).join('\n\n');
     
-    navigator.clipboard.writeText(textHistory)
-        .then(() => {
-            const tempMsg = document.createElement('div');
-            tempMsg.classList.add('message', 'system-message');
-            tempMsg.textContent = 'Chat history copied to clipboard!';
-            chatMessages.appendChild(tempMsg);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-            setTimeout(() => tempMsg.remove(), 3000);
-        })
-        .catch(err => {
-            console.error('Failed to copy chat history:', err);
-            const tempMsg = document.createElement('div');
-            tempMsg.classList.add('message', 'system-message', 'error-message');
-            tempMsg.textContent = 'Failed to copy chat history. Please try again.';
-            chatMessages.appendChild(tempMsg);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-            setTimeout(() => tempMsg.remove(), 3000);
-        });
+    navigator.clipboard.writeText(textHistory).then(() => {
+        const tempMsg = document.createElement('div');
+        tempMsg.className = 'message system-message';
+        tempMsg.textContent = 'Chat history copied!';
+        chatMessages.appendChild(tempMsg);
+        setTimeout(() => tempMsg.remove(), 3000);
+    });
 }
 
 async function tryImportChatHistory(text) {
     try {
-        // First try the new plaintext format
         if (text.includes('You:') || text.includes('John:')) {
             clearChat();
-            
-            // Split by double newlines to get message blocks
             const messageBlocks = text.split(/\n\n+/);
-            
             messageBlocks.forEach(block => {
-                const isUserMessage = block.startsWith('You:');
-                const isJohnMessage = block.startsWith('John:');
-                
-                if (isUserMessage || isJohnMessage) {
-                    // Extract content after the prefix
-                    const content = block.substring(block.indexOf(':') + 1).trim();
-                    const sender = isUserMessage ? 'user' : 'john';
-                    
-                    // Display the message
-                    displayMessage(content, sender);
-                    
-                    // Add to conversation history
-                    conversationHistory.push({
-                        role: isUserMessage ? 'user' : 'assistant',
-                        content: content
-                    });
+                const isUser = block.startsWith('You:');
+                const content = block.substring(block.indexOf(':') + 1).trim();
+                if (content) {
+                    displayMessage(content, isUser ? 'user' : 'john');
+                    conversationHistory.push({ role: isUser ? 'user' : 'assistant', content });
                 }
             });
-            
-            return true;
-        }
-        
-        // Fallback to try JSON format for backward compatibility
-        const parsedHistory = JSON.parse(text);
-        
-        if (Array.isArray(parsedHistory) && parsedHistory.length > 0 && 
-            parsedHistory.every(msg => msg.role && typeof msg.content === 'string')) {
-            
-            clearChat();
-            conversationHistory = parsedHistory;
-            
-            parsedHistory.forEach(msg => {
-                if (msg.role === 'user' || msg.role === 'assistant') {
-                    const sender = msg.role === 'user' ? 'user' : 'john';
-                    let content = msg.content;
-                    
-                    // Clean up status markers if they exist
-                    content = content.replace(/\[STATUS:(\{.*?\})\]/g, '').trim();
-                    content = content.replace(/\[emotion:(happy|sad|surprised|angry|thinking|default)\]/gi, '').trim();
-                    
-                    displayMessage(content, sender);
-                }
-            });
-            
-            // Update status based on last response if available
-            const lastResponse = parsedHistory.filter(msg => msg.role === 'assistant').pop()?.content;
-            if (lastResponse) {
-                let statusMatch = lastResponse.match(/\[STATUS:(\{.*?\})\]/);
-                if (statusMatch) {
-                    try {
-                        let statusData = JSON.parse(statusMatch[1]);
-                        if (statusData.emotion) setExpression(statusData.emotion);
-                        if (statusData.location) johnStatus.location = statusData.location;
-                        if (statusData.goal) johnStatus.goal = statusData.goal;
-                        if (statusData.mood) johnStatus.mood = statusData.mood;
-                        if (statusData.energy !== undefined) johnStatus.energy = statusData.energy;
-                        if (statusData.happiness !== undefined) johnStatus.happiness = statusData.happiness;
-                        if (statusData.social !== undefined) johnStatus.social = statusData.social;
-                        if (statusData.species) johnStatus.species = statusData.species;
-                        updateStatusPanel();
-                    } catch (e) {
-                        console.error("Error parsing imported status data:", e);
-                    }
-                }
-            }
-            
             return true;
         }
         return false;
-    } catch (e) {
-        // If JSON parsing failed, try to handle as plaintext anyway
-        if (text.includes(':')) {
-            // This might be plaintext even if it's not perfectly formatted
-            const lines = text.split('\n');
-            let currentSender = null;
-            let currentContent = '';
-            
-            clearChat();
-            conversationHistory = [];
-            
-            lines.forEach(line => {
-                if (line.includes('You:') || line.includes('John:')) {
-                    // Save previous message if there was one
-                    if (currentSender && currentContent.trim()) {
-                        displayMessage(currentContent.trim(), currentSender);
-                        conversationHistory.push({
-                            role: currentSender === 'user' ? 'user' : 'assistant',
-                            content: currentContent.trim()
-                        });
-                    }
-                    
-                    // Start new message
-                    currentSender = line.includes('You:') ? 'user' : 'john';
-                    currentContent = line.substring(line.indexOf(':') + 1).trim();
-                } else if (currentSender) {
-                    // Continue previous message
-                    currentContent += '\n' + line;
-                }
-            });
-            
-            // Add the last message if there is one
-            if (currentSender && currentContent.trim()) {
-                displayMessage(currentContent.trim(), currentSender);
-                conversationHistory.push({
-                    role: currentSender === 'user' ? 'user' : 'assistant',
-                    content: currentContent.trim()
-                });
-            }
-            
-            return true;
-        }
-        
-        console.error("Error importing chat history:", e);
-        return false;
-    }
+    } catch (e) { return false; }
 }
 
 async function sendMessage() {
     const userMessage = userInput.value.trim();
-    
-    // Check if this is a pasted chat history even if message is empty
-    if (userMessage && (userMessage.includes('You:') || userMessage.includes('John:') || 
-        (userMessage.startsWith('[') && userMessage.includes('"role"')) || 
-        (userMessage.startsWith('{') && userMessage.includes('"role"')))) {
-        if (tryImportChatHistory(userMessage)) {
-            userInput.value = '';
-            return;
-        }
+    if (!userMessage) return;
+
+    if (tryImportChatHistory(userMessage)) {
+        userInput.value = '';
+        return;
     }
-    
-    // Only display user message if not empty
-    if (userMessage) {
-        displayMessage(userMessage, 'user');
-    }
-    
-    // Clear input
+
+    displayMessage(userMessage, 'user');
     userInput.value = '';
-    
-    // Show typing indicator
     typingIndicator.classList.remove('hidden');
-    
-    // Simulate thinking
     setExpression("thinking");
-    
+
+    const newMessage = { role: "user", content: userMessage };
+    conversationHistory.push(newMessage);
+    conversationHistory = conversationHistory.slice(-10);
+
     try {
-        // Only add user message to history if not empty
-        if (userMessage) {
-            const newMessage = {
-                role: "user",
-                content: userMessage
-            };
-            conversationHistory.push(newMessage);
-        }
-        conversationHistory = conversationHistory.slice(-10);
-        
-        // Get response from AI
-        const completion = await websim.chat.completions.create({
-            messages: [
-                {
-                    role: "system",
-                    content: `You are roleplaying as John Timbles, a complex 3D human character with emotions and expressions.
-                    You respond in the first person AS John Timbles, never acknowledging that you're an AI.
-                    Keep responses under 100 words and be emotionally reactive.
-                    After your response, include JSON data about John's state in this format:
-                    [STATUS:{"emotion":"happy","species":"Human","location":"Home","goal":"Relaxing","mood":"Content","energy":80,"happiness":70,"social":60}]
-                    Where emotion is one of: happy, sad, surprised, angry, thinking, default
-                    Species, location, goal, and mood are strings. Energy, happiness, social are numbers 0-100.`
-                },
-                ...conversationHistory
-            ]
+        const response = await fetch("https://overgreasy-maxine-transonic.ngrok-free.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "ngrok-skip-browser-warning": "true"
+            },
+            body: JSON.stringify({
+                messages: [
+                    {
+                        role: "system",
+                        content: `You are John Timbles. Respond in 1st person. Keep under 100 words. 
+                        Always end with status JSON: [STATUS:{"emotion":"happy","species":"Human","location":"Home","goal":"Relaxing","mood":"Content","energy":80,"happiness":70,"social":60}]`
+                    },
+                    ...conversationHistory
+                ],
+                max_tokens: 200
+            })
         });
-        
-        // Hide typing indicator
+
+        const data = await response.json();
+        const aiResponse = data.choices[0].message.content;
         typingIndicator.classList.add('hidden');
         
-        let response = completion.content;
-        conversationHistory.push(completion);
-        
-        // Parse status from response
+        let displayContent = aiResponse;
         let emotion = "default";
-        let statusMatch = response.match(/\[STATUS:(\{.*?\})\]/);
-        
+        const statusMatch = aiResponse.match(/\[STATUS:(\{.*?\})\]/);
+
         if (statusMatch) {
             try {
-                let statusData = JSON.parse(statusMatch[1]);
+                const statusData = JSON.parse(statusMatch[1]);
                 emotion = statusData.emotion || "default";
-                
-                // Update John's status
-                if (statusData.species) johnStatus.species = statusData.species;
-                if (statusData.location) johnStatus.location = statusData.location;
-                if (statusData.goal) johnStatus.goal = statusData.goal;
-                if (statusData.mood) johnStatus.mood = statusData.mood;
-                if (statusData.energy !== undefined) johnStatus.energy = statusData.energy;
-                if (statusData.happiness !== undefined) johnStatus.happiness = statusData.happiness;
-                if (statusData.social !== undefined) johnStatus.social = statusData.social;
-                
-                // Update status panel
+                Object.assign(johnStatus, statusData);
                 updateStatusPanel();
-                
-                // Remove status data from display
-                response = response.replace(/\[STATUS:(\{.*?\})\]/, '').trim();
-            } catch (e) {
-                console.error("Error parsing status data:", e);
-            }
-        } else {
-            // Legacy emotion parsing
-            const emotionMatch = response.match(/\[emotion:(happy|sad|surprised|angry|thinking|default)\]/i);
-            if (emotionMatch) {
-                emotion = emotionMatch[1].toLowerCase();
-                // Remove emotion tag from display
-                response = response.replace(/\[emotion:(happy|sad|surprised|angry|thinking|default)\]/i, '').trim();
-            }
+                displayContent = aiResponse.replace(/\[STATUS:(\{.*?\})\]/, '').trim();
+            } catch (e) { console.error(e); }
         }
-        
-        // Additional cleanup to remove any remaining code blocks or JSON formatting
-        response = response.replace(/```json[\s\S]*?```/g, '').trim();
-        response = response.replace(/```[\s\S]*?```/g, '').trim();
-        
-        // Display John's response with a slight delay for realism
-        setTimeout(() => {
-            displayMessage(response, 'john');
-            // Set character expression
-            setExpression(emotion);
-        }, 300);
-        
+
+        conversationHistory.push({ role: "assistant", content: aiResponse });
+        displayMessage(displayContent, 'john');
+        setExpression(emotion);
+
     } catch (error) {
-        // Hide typing indicator
         typingIndicator.classList.add('hidden');
-        
-        console.error("Error getting response:", error);
-        displayMessage("Sorry, I'm having trouble responding right now.", 'john');
+        console.error("Connection Error:", error);
+        displayMessage("Connection to local AI failed. Make sure KoboldCpp and Ngrok are running.", 'john');
         setExpression("sad");
     }
 }
 
 function displayMessage(content, sender) {
     const messageElement = document.createElement('div');
-    messageElement.classList.add('message');
-    messageElement.classList.add(sender + '-message');
+    messageElement.className = `message ${sender}-message`;
     
-    // Convert URLs to clickable links
-    const linkedContent = content.replace(
-        /(https?:\/\/[^\s]+)/g, 
-        '<a href="$1" target="_blank">$1</a>'
-    );
-    
-    // Create main content container
     const contentContainer = document.createElement('div');
-    contentContainer.classList.add('message-content');
-    contentContainer.innerHTML = linkedContent;
-    messageElement.appendChild(contentContainer);
+    contentContainer.className = 'message-content';
+    contentContainer.innerHTML = content.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
     
-    // Add timestamp
     const timestamp = document.createElement('div');
-    timestamp.classList.add('timestamp');
-    timestamp.textContent = getTimeString();
+    timestamp.className = 'timestamp';
+    timestamp.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    messageElement.appendChild(contentContainer);
     messageElement.appendChild(timestamp);
-    
-    // Add edit button for John's messages
-    if (sender === 'john') {
-        const actionButtons = document.createElement('div');
-        actionButtons.classList.add('message-actions');
-        
-        const editButton = document.createElement('button');
-        editButton.innerHTML = '<span class="material-symbols-rounded" style="font-size: 16px;">edit</span>';
-        editButton.title = 'Edit message';
-        editButton.addEventListener('click', () => {
-            toggleEditMode(messageElement, contentContainer.innerHTML);
-        });
-        actionButtons.appendChild(editButton);
-        messageElement.appendChild(actionButtons);
-    }
-    
     chatMessages.appendChild(messageElement);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Toggle edit mode for a message
-function toggleEditMode(messageElement, content) {
-    const contentContainer = messageElement.querySelector('.message-content');
-    
-    // If already in edit mode, exit
-    if (messageElement.classList.contains('edit-mode')) {
-        messageElement.classList.remove('edit-mode');
-        return;
-    }
-    
-    // Save original content for potential cancellation
-    messageElement.dataset.originalContent = contentContainer.innerHTML;
-    
-    // Enter edit mode
-    messageElement.classList.add('edit-mode');
-    
-    // Hide message actions while editing
-    const messageActions = messageElement.querySelector('.message-actions');
-    if (messageActions) messageActions.style.display = 'none';
-    
-    // Create edit textarea
-    const textarea = document.createElement('textarea');
-    textarea.classList.add('edit-textarea');
-    
-    // Clean content of HTML tags for editing
-    let cleanContent = content;
-    cleanContent = cleanContent.replace(/<a href="(.*?)".*?>(.*?)<\/a>/g, '$1');
-    cleanContent = cleanContent.replace(/<[^>]*>/g, '');
-    
-    textarea.value = cleanContent.trim();
-    
-    // Create edit actions container
-    const editActions = document.createElement('div');
-    editActions.classList.add('edit-actions');
-    
-    // Create save button
-    const saveButton = document.createElement('button');
-    saveButton.classList.add('save-btn');
-    saveButton.textContent = 'Save';
-    saveButton.addEventListener('click', () => {
-        saveMessageEdit(messageElement, textarea.value);
-    });
-    
-    // Create cancel button
-    const cancelButton = document.createElement('button');
-    cancelButton.classList.add('cancel-btn');
-    cancelButton.textContent = 'Cancel';
-    cancelButton.addEventListener('click', () => {
-        cancelMessageEdit(messageElement);
-    });
-    
-    // Add buttons to actions container
-    editActions.appendChild(cancelButton);
-    editActions.appendChild(saveButton);
-    
-    // Clear and rebuild content area
-    contentContainer.innerHTML = '';
-    contentContainer.appendChild(textarea);
-    contentContainer.appendChild(editActions);
-    
-    // Focus the textarea
-    textarea.focus();
-}
-
-// Save edited message
-function saveMessageEdit(messageElement, newContent) {
-    const contentContainer = messageElement.querySelector('.message-content');
-    
-    // Convert URLs to clickable links
-    const linkedContent = newContent.replace(
-        /(https?:\/\/[^\s]+)/g, 
-        '<a href="$1" target="_blank">$1</a>'
-    );
-    
-    // Update content
-    contentContainer.innerHTML = linkedContent;
-    
-    // Update in conversation history if needed
-    // This would need to update the actual history array that's sent to the AI
-    
-    // Exit edit mode
-    messageElement.classList.remove('edit-mode');
-    
-    // Show message actions again
-    const messageActions = messageElement.querySelector('.message-actions');
-    if (messageActions) messageActions.style.display = '';
-}
-
-// Cancel message editing
-function cancelMessageEdit(messageElement) {
-    const contentContainer = messageElement.querySelector('.message-content');
-    
-    // Restore original content
-    contentContainer.innerHTML = messageElement.dataset.originalContent;
-    
-    // Exit edit mode
-    messageElement.classList.remove('edit-mode');
-    
-    // Show message actions again
-    const messageActions = messageElement.querySelector('.message-actions');
-    if (messageActions) messageActions.style.display = '';
-}
-
-// Close emoji picker when clicking outside
-document.addEventListener('click', (e) => {
-    if (!emojiButton.contains(e.target) && !emojiPicker.contains(e.target)) {
-        toggleEmojiPicker(false);
-    }
-});
-
-// User input paste handler
 userInput.addEventListener('paste', (e) => {
-    // Get pasted content directly from clipboard data
-    const clipboardData = e.clipboardData || window.clipboardData;
-    const pastedText = clipboardData.getData('text');
-    
-    if (pastedText && (pastedText.includes('You:') || pastedText.includes('John:') || 
-        (pastedText.startsWith('[') && pastedText.includes('"role"')) || 
-        (pastedText.startsWith('{') && pastedText.includes('"role"')))) {
-        e.preventDefault(); // Prevent default paste
-        if (tryImportChatHistory(pastedText)) {
-            userInput.value = '';
-        }
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    if (text.includes('You:') || text.includes('John:')) {
+        e.preventDefault();
+        tryImportChatHistory(text);
     }
 });
 
-// Event listeners
 sendButton.addEventListener('click', sendMessage);
-userInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        sendMessage();
-    }
-});
+userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
 voiceButton.addEventListener('click', toggleSpeechRecognition);
 emojiButton.addEventListener('click', () => toggleEmojiPicker());
 clearChatButton.addEventListener('click', clearChat);
 copyButton.addEventListener('click', copyChatHistory);
 window.addEventListener('resize', handleResize);
 
-// Initialize
 loadCharacterModel();
 initEmojiPicker();
 setupSpeechRecognition();
-updateStatusPanel(); // Initialize status panel
+updateStatusPanel();
 animate();
-
-// Mock websim API for chat completions
-const websim = {
-    chat: {
-        completions: {
-            create: async function(options) {
-                try {
-                    // Show typing indicator for a realistic delay
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    
-                    // Use the actual LLM API
-                    const completion = await window.websim.chat.completions.create(options);
-                    return completion;
-                } catch (error) {
-                    console.error("Error calling AI:", error);
-                    return {
-                        content: "I'm having trouble connecting. Let's try again in a moment. [STATUS:{\"emotion\":\"sad\",\"species\":\"Human\",\"location\":\"" + johnStatus.location + "\",\"goal\":\"Trying to communicate\",\"mood\":\"Concerned\",\"energy\":" + johnStatus.energy + ",\"happiness\":" + (johnStatus.happiness - 10) + ",\"social\":" + johnStatus.social + "}]",
-                        role: "assistant"
-                    };
-                }
-            }
-        }
-    }
-};
-
-function getTimeString() {
-    const now = new Date();
-    return now.getHours().toString().padStart(2, '0') + ':' + 
-           now.getMinutes().toString().padStart(2, '0');
-}
