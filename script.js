@@ -299,7 +299,7 @@ async function sendMessage() {
     conversationHistory = conversationHistory.slice(-10);
 
     try {
-        const response = await fetch("https://overgreasy-maxine-transonic.ngrok-free.dev/v1/chat/completions", {
+        const response = await fetch("https://compressed-discovery-jan-maple.trycloudflare.com", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
