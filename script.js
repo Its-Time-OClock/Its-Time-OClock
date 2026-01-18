@@ -350,7 +350,7 @@ async function generateKoboldResponse(history) {
         rep_pen: 1.1,
         rep_pen_range: 256,
         rep_pen_slope: 1,
-        temperature: 0.7,
+        temperature: 2.7,
         tfs: 1,
         top_a: 0,
         top_k: 100,
