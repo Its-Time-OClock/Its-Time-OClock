@@ -322,44 +322,47 @@ function copyChatHistory() {
 // --- UPDATED SYSTEM PROMPT ---
 // --- UPDATED SYSTEM PROMPT ---
 const SYSTEM_PROMPT = `### Instruction:
-You are roleplaying as John Timbles.
-1. Act natural. You are a human, not an AI.
-2. Respond directly to the user's last message.
-3. Do not output timestamps (like 19:51) or meta-instructions.
-4. After your dialogue, you MUST include the status block.
+You are John Timbles. 
+1. You are a living human, NOT an AI or an assistant.
+2. NEVER apologize for "system glitches" or break character.
+3. NEVER add notes like "(Note:...)" or "### End".
+4. Respond directly to the user.
+5. You MUST include a hidden status block at the very end.
 
-### Format Example:
-User: How are you?
-John: I'm doing great, thanks for asking!
+### Format:
+[Dialogue]
 [STATUS:{"emotion":"happy","species":"Human","location":"Home","goal":"Chatting","mood":"Content","energy":90,"happiness":80,"social":70}]
-
-### Context:
-John is currently at Home. He is feeling Content.
 `;
 
 async function generateKoboldResponse(history) {
+    // 1. Build the prompt
     let promptText = SYSTEM_PROMPT + "\n\n";
     
-    // Format history strictly to prevent "script format" leakage
     history.forEach(msg => {
-        const roleLabel = msg.role === 'user' ? 'User' : 'John'; // Changed 'You' to 'User' to match system prompt
-        promptText += `${roleLabel}: ${msg.content}\n`;
+        // Use 'User' and 'John' strictly
+        const roleLabel = msg.role === 'user' ? 'User' : 'John';
+        
+        // CLEANUP: If previous history has [STATUS] tags, strip them from the context
+        // sent back to the AI. The AI only needs the dialogue history.
+        let cleanContent = msg.content.replace(/\[STATUS:.*?\]/g, '').trim();
+        cleanContent = cleanContent.replace(/\[STATUS:[\s\S]*$/, '').trim(); // Catch malformed ends
+        
+        promptText += `${roleLabel}: ${cleanContent}\n`;
     });
     
     promptText += "John:";
 
     const requestBody = {
         max_context_length: 2048,
-        max_length: 300, // Increased to allow full JSON generation
+        // INCREASED LENGTH: This prevents the JSON from cutting off mid-stream
+        max_length: 350, 
         prompt: promptText,
         quiet: true,
-        rep_pen: 1.1,
-        temperature: 0.7,
+        rep_pen: 1.15, // Slightly higher to prevent looping
+        temperature: 0.7, 
         top_p: 0.9,
-        // CRITICAL FIX: 
-        // 1. Removed "}" and "]" so the JSON can actually finish.
-        // 2. Added "###" and "\nUser:" to stop it from writing the next turn or hallucinating instructions.
-        stop_sequence: ["\nUser:", "User:", "###", "<|endoftext|>"]
+        // STOP SEQUENCES: Stop if it tries to write the User's turn or system notes
+        stop_sequence: ["\nUser:", "User:", "###", "(Note:"]
     };
 
     const response = await fetch(KOBOLD_API_URL, {
@@ -371,23 +374,7 @@ async function generateKoboldResponse(history) {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const data = await response.json();
-    let text = data.results[0].text;
-
-    // SANITIZATION:
-    // If the AI continues writing after the JSON (like timestamps or "python"), cut it off.
-    // We look for the closing of the STATUS tag.
-    if (text.includes('}]')) {
-        text = text.substring(0, text.lastIndexOf('}]') + 2);
-    } 
-    // Fallback: If it generated a Status block but added junk after standard bracket
-    else if (text.includes('[STATUS:')) {
-         const endIndex = text.indexOf('}]', text.indexOf('[STATUS:'));
-         if (endIndex !== -1) {
-             text = text.substring(0, endIndex + 2);
-         }
-    }
-
-    return text;
+    return data.results[0].text;
 }
 
 // Initial Connection Check
@@ -482,17 +469,34 @@ function processResponse(fullResponse) {
     typingIndicator.classList.add('hidden');
     
     let emotion = "default";
-    let displayText = fullResponse;
+    // Default to the full response initially
+    let displayText = fullResponse; 
     
-    // Parse status from response
-    let statusMatch = fullResponse.match(/\[STATUS:(\{.*?\})\]/);
+    // 1. Aggressive Extraction: Look for the start of the status block
+    const statusStartIndex = fullResponse.indexOf('[STATUS:');
     
-    if (statusMatch) {
+    if (statusStartIndex !== -1) {
+        // Isolate the JSON string
+        const statusString = fullResponse.substring(statusStartIndex);
+        
+        // Remove the ENTIRE status block from the text shown to the user
+        displayText = fullResponse.substring(0, statusStartIndex).trim();
+        
         try {
-            let statusData = JSON.parse(statusMatch[1]);
-            emotion = statusData.emotion || "default";
+            // cleanup the JSON string to try and parse it
+            let jsonStr = statusString.replace('[STATUS:', '');
+            // If it was cut off, try to close it artificially to salvage data
+            if (!jsonStr.endsWith('}]')) {
+                 // Remove trailing junk
+                 jsonStr = jsonStr.split('}')[0] + '}'; 
+            } else {
+                 jsonStr = jsonStr.replace(']', '');
+            }
+
+            let statusData = JSON.parse(jsonStr);
             
-            // Update John's status
+            // Apply Status Data
+            if (statusData.emotion) emotion = statusData.emotion;
             if (statusData.species) johnStatus.species = statusData.species;
             if (statusData.location) johnStatus.location = statusData.location;
             if (statusData.goal) johnStatus.goal = statusData.goal;
@@ -501,27 +505,20 @@ function processResponse(fullResponse) {
             if (statusData.happiness !== undefined) johnStatus.happiness = statusData.happiness;
             if (statusData.social !== undefined) johnStatus.social = statusData.social;
             
-            // Update status panel
             updateStatusPanel();
-            
-            // Remove status data from display text
-            displayText = fullResponse.replace(/\[STATUS:(\{.*?\})\]/, '').trim();
         } catch (e) {
-            console.error("Error parsing status data:", e);
-        }
-    } else {
-        // Legacy emotion parsing (fallback)
-        const emotionMatch = fullResponse.match(/\[emotion:(happy|sad|surprised|angry|thinking|default)\]/i);
-        if (emotionMatch) {
-            emotion = emotionMatch[1].toLowerCase();
-            displayText = fullResponse.replace(/\[emotion:(happy|sad|surprised|angry|thinking|default)\]/i, '').trim();
+            console.warn("Could not parse Status JSON (Conversation continues anyway):", e);
         }
     }
+
+    // 2. Extra Cleanup for "John:" prefix if the AI generated it
+    if (displayText.startsWith("John:")) {
+        displayText = displayText.substring(5).trim();
+    }
     
-    // Cleanup any lingering code blocks or JSON artifacts
-    displayText = displayText.replace(/```json[\s\S]*?```/g, '').trim();
-    displayText = displayText.replace(/```[\s\S]*?```/g, '').trim();
-    
+    // 3. Cleanup "Note:" leaks if the stop sequence missed them
+    displayText = displayText.replace(/\(Note:[\s\S]*?\)/gi, '').trim();
+
     // Display John's response
     displayMessage(displayText, 'john');
     setExpression(emotion);
