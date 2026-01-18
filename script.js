@@ -4,7 +4,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import gsap from 'gsap';
 
 // --- CONFIGURATION ---
-const KOBOLD_API_URL = "https://sink-queens-role-driven.trycloudflare.com/api/v1/generate";
+const KOBOLD_API_URL = "https://flip-gourmet-isaac-salmon.trycloudflare.com/api/v1/generate";
 
 // DOM elements
 const sceneContainer = document.getElementById('scene-container');
