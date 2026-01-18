@@ -15,6 +15,7 @@ const emojiPicker = document.getElementById('emoji-picker');
 const clearChatButton = document.getElementById('clear-chat');
 const emotionIcon = document.getElementById('emotion-icon');
 const emotionText = document.getElementById('emotion-text');
+
 const copyButton = document.getElementById('copy-chat');
 
 // Status panel elements
@@ -75,6 +76,9 @@ let expressions = {
 };
 
 let currentExpression = "default";
+let morphTargets = {};
+
+// Emotion icons map
 const emotionIcons = {
     happy: "😊",
     sad: "😢",
@@ -95,18 +99,22 @@ let johnStatus = {
     social: 60
 };
 
+// Update John's status panel
 function updateStatusPanel() {
     johnSpecies.textContent = johnStatus.species;
     johnLocation.textContent = johnStatus.location;
     johnGoal.textContent = johnStatus.goal;
     johnMood.textContent = johnStatus.mood;
+    
     energyBar.style.width = johnStatus.energy + '%';
     happinessBar.style.width = johnStatus.happiness + '%';
     socialBar.style.width = johnStatus.social + '%';
 }
 
+// Initialize emoji picker
 function initEmojiPicker() {
     const commonEmojis = ["😊", "😂", "❤️", "👍", "😎", "😢", "😡", "🎉", "🤔", "👋", "🙏", "🥺", "😍", "🤣", "😭", "✨", "🔥", "👀", "💯", "🤩", "🥰", "😇", "😬", "🙄", "😴", "😋", "😘", "💪", "🤗"];
+    
     commonEmojis.forEach(emoji => {
         const emojiItem = document.createElement('div');
         emojiItem.classList.add('emoji-item');
@@ -120,6 +128,7 @@ function initEmojiPicker() {
     });
 }
 
+// Toggle emoji picker visibility
 function toggleEmojiPicker(show) {
     if (show === undefined) {
         emojiPicker.classList.toggle('hidden');
@@ -128,6 +137,7 @@ function toggleEmojiPicker(show) {
     }
 }
 
+// Speech recognition setup
 let recognition;
 function setupSpeechRecognition() {
     if ('webkitSpeechRecognition' in window) {
@@ -135,10 +145,21 @@ function setupSpeechRecognition() {
         recognition.continuous = false;
         recognition.interimResults = false;
         recognition.lang = 'en-US';
-        recognition.onstart = () => voiceButton.classList.add('recording');
-        recognition.onresult = (event) => { userInput.value = event.results[0][0].transcript; };
-        recognition.onend = () => voiceButton.classList.remove('recording');
-        recognition.onerror = (event) => {
+        
+        recognition.onstart = function() {
+            voiceButton.classList.add('recording');
+        };
+        
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            userInput.value = transcript;
+        };
+        
+        recognition.onend = function() {
+            voiceButton.classList.remove('recording');
+        };
+        
+        recognition.onerror = function(event) {
             console.error('Speech recognition error', event.error);
             voiceButton.classList.remove('recording');
         };
@@ -147,6 +168,7 @@ function setupSpeechRecognition() {
     }
 }
 
+// Toggle speech recognition
 function toggleSpeechRecognition() {
     if (voiceButton.classList.contains('recording')) {
         recognition.stop();
@@ -155,6 +177,7 @@ function toggleSpeechRecognition() {
     }
 }
 
+// Placeholder function to load character model
 function loadCharacterModel() {
     const geometry = new THREE.BoxGeometry(0.5, 0.8, 0.5);
     const material = new THREE.MeshStandardMaterial({ color: 0xbb4444 });
@@ -174,9 +197,11 @@ function loadCharacterModel() {
     
     const eyeGeometry = new THREE.SphereGeometry(0.05, 16, 16);
     const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x222222 });
+    
     const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
     leftEye.position.set(0.08, 0.05, 0.2);
     head.add(leftEye);
+    
     const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
     rightEye.position.set(-0.08, 0.05, 0.2);
     head.add(rightEye);
@@ -211,10 +236,14 @@ function animateCharacter() {
 }
 
 function setExpression(expression) {
-    if (!expressions[expression]) expression = "default";
+    if (!expressions[expression]) {
+        expression = "default";
+    }
+    
     currentExpression = expression;
     emotionIcon.textContent = emotionIcons[expression] || emotionIcons.default;
     emotionText.textContent = expression;
+    
     gsap.to(headBone.rotation, {
         x: expression === "sad" ? -0.2 : 
            expression === "happy" ? 0.1 : 
@@ -249,16 +278,22 @@ function copyChatHistory() {
     const textHistory = conversationHistory.map(msg => {
         const role = msg.role === 'user' ? 'You' : 'John';
         let content = msg.content.replace(/\[STATUS:(\{.*?\})\]/g, '').trim();
+        content = content.replace(/\[emotion:(happy|sad|surprised|angry|thinking|default)\]/gi, '').trim();
         return `${role}: ${content}`;
     }).join('\n\n');
     
-    navigator.clipboard.writeText(textHistory).then(() => {
-        const tempMsg = document.createElement('div');
-        tempMsg.className = 'message system-message';
-        tempMsg.textContent = 'Chat history copied!';
-        chatMessages.appendChild(tempMsg);
-        setTimeout(() => tempMsg.remove(), 3000);
-    });
+    navigator.clipboard.writeText(textHistory)
+        .then(() => {
+            const tempMsg = document.createElement('div');
+            tempMsg.classList.add('message', 'system-message');
+            tempMsg.textContent = 'Chat history copied to clipboard!';
+            chatMessages.appendChild(tempMsg);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            setTimeout(() => tempMsg.remove(), 3000);
+        })
+        .catch(err => {
+            console.error('Failed to copy chat history:', err);
+        });
 }
 
 async function tryImportChatHistory(text) {
@@ -267,110 +302,167 @@ async function tryImportChatHistory(text) {
             clearChat();
             const messageBlocks = text.split(/\n\n+/);
             messageBlocks.forEach(block => {
-                const isUser = block.startsWith('You:');
-                const content = block.substring(block.indexOf(':') + 1).trim();
-                if (content) {
-                    displayMessage(content, isUser ? 'user' : 'john');
-                    conversationHistory.push({ role: isUser ? 'user' : 'assistant', content });
+                const isUserMessage = block.startsWith('You:');
+                const isJohnMessage = block.startsWith('John:');
+                if (isUserMessage || isJohnMessage) {
+                    const content = block.substring(block.indexOf(':') + 1).trim();
+                    const sender = isUserMessage ? 'user' : 'john';
+                    displayMessage(content, sender);
+                    conversationHistory.push({
+                        role: isUserMessage ? 'user' : 'assistant',
+                        content: content
+                    });
                 }
             });
             return true;
         }
         return false;
-    } catch (e) { return false; }
+    } catch (e) {
+        console.error("Error importing chat history:", e);
+        return false;
+    }
 }
 
 async function sendMessage() {
     const userMessage = userInput.value.trim();
-    if (!userMessage) return;
-
-    if (tryImportChatHistory(userMessage)) {
-        userInput.value = '';
-        return;
+    if (userMessage && (userMessage.includes('You:') || userMessage.includes('John:'))) {
+        if (tryImportChatHistory(userMessage)) {
+            userInput.value = '';
+            return;
+        }
     }
-
-    displayMessage(userMessage, 'user');
+    if (userMessage) {
+        displayMessage(userMessage, 'user');
+    }
     userInput.value = '';
     typingIndicator.classList.remove('hidden');
     setExpression("thinking");
-
-    const newMessage = { role: "user", content: userMessage };
-    conversationHistory.push(newMessage);
-    conversationHistory = conversationHistory.slice(-10);
-
+    
     try {
-        const response = await fetch("https://compressed-discovery-jan-maple.trycloudflare.com", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "ngrok-skip-browser-warning": "true"
-            },
-            body: JSON.stringify({
-                messages: [
-                    {
-                        role: "system",
-                        content: `You are John Timbles. Respond in 1st person. Keep under 100 words. 
-                        Always end with status JSON: [STATUS:{"emotion":"happy","species":"Human","location":"Home","goal":"Relaxing","mood":"Content","energy":80,"happiness":70,"social":60}]`
-                    },
-                    ...conversationHistory
-                ],
-                max_tokens: 200
-            })
-        });
-
-        const data = await response.json();
-        const aiResponse = data.choices[0].message.content;
-        typingIndicator.classList.add('hidden');
+        if (userMessage) {
+            conversationHistory.push({ role: "user", content: userMessage });
+        }
+        conversationHistory = conversationHistory.slice(-10);
         
-        let displayContent = aiResponse;
+        // --- MODIFIED CALL TO KOBOLD CCP ---
+        const completion = await websim.chat.completions.create({
+            messages: conversationHistory
+        });
+        
+        typingIndicator.classList.add('hidden');
+        let response = completion.content;
+        conversationHistory.push(completion);
+        
         let emotion = "default";
-        const statusMatch = aiResponse.match(/\[STATUS:(\{.*?\})\]/);
-
+        let statusMatch = response.match(/\[STATUS:(\{.*?\})\]/);
+        
         if (statusMatch) {
             try {
-                const statusData = JSON.parse(statusMatch[1]);
+                let statusData = JSON.parse(statusMatch[1]);
                 emotion = statusData.emotion || "default";
-                Object.assign(johnStatus, statusData);
+                if (statusData.species) johnStatus.species = statusData.species;
+                if (statusData.location) johnStatus.location = statusData.location;
+                if (statusData.goal) johnStatus.goal = statusData.goal;
+                if (statusData.mood) johnStatus.mood = statusData.mood;
+                if (statusData.energy !== undefined) johnStatus.energy = statusData.energy;
+                if (statusData.happiness !== undefined) johnStatus.happiness = statusData.happiness;
+                if (statusData.social !== undefined) johnStatus.social = statusData.social;
                 updateStatusPanel();
-                displayContent = aiResponse.replace(/\[STATUS:(\{.*?\})\]/, '').trim();
-            } catch (e) { console.error(e); }
+                response = response.replace(/\[STATUS:(\{.*?\})\]/, '').trim();
+            } catch (e) { console.error("Error parsing status data:", e); }
         }
-
-        conversationHistory.push({ role: "assistant", content: aiResponse });
-        displayMessage(displayContent, 'john');
-        setExpression(emotion);
-
+        
+        response = response.replace(/```json[\s\S]*?```/g, '').replace(/```[\s\S]*?```/g, '').trim();
+        
+        setTimeout(() => {
+            displayMessage(response, 'john');
+            setExpression(emotion);
+        }, 300);
+        
     } catch (error) {
         typingIndicator.classList.add('hidden');
-        console.error("Connection Error:", error);
-        displayMessage("Connection to local AI failed. Make sure KoboldCpp and Ngrok are running.", 'john');
+        console.error("Error getting response:", error);
+        displayMessage("Sorry, I'm having trouble responding right now.", 'john');
         setExpression("sad");
     }
 }
 
 function displayMessage(content, sender) {
     const messageElement = document.createElement('div');
-    messageElement.className = `message ${sender}-message`;
+    messageElement.classList.add('message', sender + '-message');
+    const linkedContent = content.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
     
     const contentContainer = document.createElement('div');
-    contentContainer.className = 'message-content';
-    contentContainer.innerHTML = content.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+    contentContainer.classList.add('message-content');
+    contentContainer.innerHTML = linkedContent;
+    messageElement.appendChild(contentContainer);
     
     const timestamp = document.createElement('div');
-    timestamp.className = 'timestamp';
-    timestamp.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
-    messageElement.appendChild(contentContainer);
+    timestamp.classList.add('timestamp');
+    timestamp.textContent = getTimeString();
     messageElement.appendChild(timestamp);
+    
+    if (sender === 'john') {
+        const actionButtons = document.createElement('div');
+        actionButtons.classList.add('message-actions');
+        const editButton = document.createElement('button');
+        editButton.innerHTML = '<span class="material-symbols-rounded" style="font-size: 16px;">edit</span>';
+        editButton.addEventListener('click', () => toggleEditMode(messageElement, contentContainer.innerHTML));
+        actionButtons.appendChild(editButton);
+        messageElement.appendChild(actionButtons);
+    }
+    
     chatMessages.appendChild(messageElement);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
+function toggleEditMode(messageElement, content) {
+    const contentContainer = messageElement.querySelector('.message-content');
+    if (messageElement.classList.contains('edit-mode')) {
+        messageElement.classList.remove('edit-mode');
+        return;
+    }
+    messageElement.dataset.originalContent = contentContainer.innerHTML;
+    messageElement.classList.add('edit-mode');
+    const textarea = document.createElement('textarea');
+    textarea.classList.add('edit-textarea');
+    let cleanContent = content.replace(/<a href="(.*?)".*?>(.*?)<\/a>/g, '$1').replace(/<[^>]*>/g, '');
+    textarea.value = cleanContent.trim();
+    const editActions = document.createElement('div');
+    editActions.classList.add('edit-actions');
+    const saveButton = document.createElement('button');
+    saveButton.textContent = 'Save';
+    saveButton.addEventListener('click', () => saveMessageEdit(messageElement, textarea.value));
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = 'Cancel';
+    cancelButton.addEventListener('click', () => cancelMessageEdit(messageElement));
+    editActions.appendChild(cancelButton);
+    editActions.appendChild(saveButton);
+    contentContainer.innerHTML = '';
+    contentContainer.appendChild(textarea);
+    contentContainer.appendChild(editActions);
+    textarea.focus();
+}
+
+function saveMessageEdit(messageElement, newContent) {
+    const contentContainer = messageElement.querySelector('.message-content');
+    const linkedContent = newContent.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+    contentContainer.innerHTML = linkedContent;
+    messageElement.classList.remove('edit-mode');
+}
+
+function cancelMessageEdit(messageElement) {
+    const contentContainer = messageElement.querySelector('.message-content');
+    contentContainer.innerHTML = messageElement.dataset.originalContent;
+    messageElement.classList.remove('edit-mode');
+}
+
 userInput.addEventListener('paste', (e) => {
-    const text = (e.clipboardData || window.clipboardData).getData('text');
-    if (text.includes('You:') || text.includes('John:')) {
+    const clipboardData = e.clipboardData || window.clipboardData;
+    const pastedText = clipboardData.getData('text');
+    if (pastedText && (pastedText.includes('You:') || pastedText.includes('John:'))) {
         e.preventDefault();
-        tryImportChatHistory(text);
+        if (tryImportChatHistory(pastedText)) userInput.value = '';
     }
 });
 
@@ -382,8 +474,65 @@ clearChatButton.addEventListener('click', clearChat);
 copyButton.addEventListener('click', copyChatHistory);
 window.addEventListener('resize', handleResize);
 
+// Initialize
 loadCharacterModel();
 initEmojiPicker();
 setupSpeechRecognition();
 updateStatusPanel();
 animate();
+
+// --- KOBOLD CCP API ADAPTER ---
+const websim = {
+    chat: {
+        completions: {
+            create: async function(options) {
+                try {
+                    // System prompt for John's personality
+                    const systemPrompt = `You are roleplaying as John Timbles, a complex 3D human character.
+Respond in the first person AS John Timbles. Keep responses under 100 words.
+After your response, ALWAYS include status JSON:
+[STATUS:{"emotion":"happy","species":"Human","location":"Home","goal":"Relaxing","mood":"Content","energy":80,"happiness":70,"social":60}]
+Emotions: happy, sad, surprised, angry, thinking, default.`;
+
+                    // Construct the prompt string from history
+                    let fullPrompt = systemPrompt + "\n\n";
+                    options.messages.forEach(msg => {
+                        const name = msg.role === 'user' ? 'You' : 'John';
+                        fullPrompt += `${name}: ${msg.content}\n`;
+                    });
+                    fullPrompt += "John:";
+
+                    const response = await fetch("https://compressed-discovery-jan-maple.trycloudflare.com/api/v1/generate", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            prompt: fullPrompt,
+                            max_length: 120,
+                            max_context_length: 2048,
+                            temperature: 0.7,
+                            top_p: 0.9,
+                            quiet: true
+                        })
+                    });
+
+                    const data = await response.json();
+                    return {
+                        content: data.results[0].text.trim(),
+                        role: "assistant"
+                    };
+                } catch (error) {
+                    console.error("Kobold Error:", error);
+                    return {
+                        content: "I'm having trouble connecting to my brain. [STATUS:{\"emotion\":\"sad\",\"mood\":\"Disconnected\"}]",
+                        role: "assistant"
+                    };
+                }
+            }
+        }
+    }
+};
+
+function getTimeString() {
+    const now = new Date();
+    return now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+}
