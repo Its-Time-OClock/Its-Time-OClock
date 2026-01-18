@@ -319,76 +319,61 @@ function copyChatHistory() {
         });
 }
 
-// System Instructions constant
+// --- UPDATED SYSTEM PROMPT ---
 const SYSTEM_PROMPT = `### Instruction:
-Roleplay as John Timbles. John is a complex 3D human character.
-CHARACTER RULES:
-1. Respond ONLY as John. 
-2. NEVER mention commands, menus, or being an AI.
-3. NEVER include "You can use the following commands" or "Go ahead with your response".
-4. Keep dialogue natural and under 100 words.
-5. You MUST append the status JSON at the end of every message, but do NOT include any other technical text.
+Roleplay as John Timbles.
+RULES:
+1. Speak naturally as a human.
+2. NEVER mention "commands", "minutes", "waiting users", or "next steps".
+3. NEVER use backticks (\`\`\`) or code blocks.
+4. You must end every response with the [STATUS] tag and nothing else.
 
-REQUIRED FORMAT:
-[John's dialogue here]
+### Response format:
+John: [Dialogue]
 [STATUS:{"emotion":"...","species":"...","location":"...","goal":"...","mood":"...","energy":80,"happiness":70,"social":60}]
-
-### Response:
 `;
 
 async function generateKoboldResponse(history) {
-    // 1. Construct the prompt string from history
     let promptText = SYSTEM_PROMPT + "\n\n";
     
-    // Add conversation history
     history.forEach(msg => {
         const roleLabel = msg.role === 'user' ? 'You' : 'John';
         promptText += `${roleLabel}: ${msg.content}\n`;
     });
     
-    // Add the trigger for John to speak
     promptText += "John:";
 
     const requestBody = {
         max_context_length: 2048,
-        max_length: 150,
+        max_length: 120,
         prompt: promptText,
         quiet: true,
         rep_pen: 1.1,
-        rep_pen_range: 256,
-        rep_pen_slope: 1,
         temperature: 0.7,
-        tfs: 1,
-        top_a: 0,
-        top_k: 100,
         top_p: 0.9,
-        typical: 1,
-        // STOP SEQUENCES are critical so it doesn't generate the user's turn
-        stop_sequence: ["You:", "\nYou ", "User:", "\nUser "]
+        // STOP SEQUENCES: Added "}" and "]" to force the AI to stop 
+        // immediately after the JSON block, preventing meta-commentary.
+        stop_sequence: ["You:", "\nUser:", "}", "]", "```"]
     };
 
-    console.log("Sending request to KoboldCPP:", KOBOLD_API_URL);
-    
     const response = await fetch(KOBOLD_API_URL, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
     });
 
-    if (!response.ok) {
-        throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
-    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const data = await response.json();
-    // Check if the response format matches KoboldCPP specs
-    if (data.results && data.results[0] && data.results[0].text) {
-        return data.results[0].text;
-    } else {
-        console.error("Unexpected API response format:", data);
-        throw new Error("Invalid response format from KoboldCPP");
+    let text = data.results[0].text;
+
+    // CLEANUP: If the AI managed to leak a closing brace despite the stop sequence, 
+    // we ensure the text ends exactly at the last closing bracket of our STATUS tag.
+    if (text.includes('}]')) {
+        text = text.substring(0, text.lastIndexOf('}]') + 2);
     }
+
+    return text;
 }
 
 // Initial Connection Check
