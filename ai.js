@@ -20,6 +20,7 @@ Respond with your thinking process in <think> tags, followed by a single valid J
 
 STRICT SCHEMA:
 {
+  "thinking": "Your internal GM reasoning process goes here.",
   "narrative": "Brief resolution of the action.",
   "playerUpdates": {
     "CLIENT_ID_STRING": {
@@ -113,7 +114,71 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
           top_p: 0.9,
           top_k: 50,
           frequency_penalty: 0.2,
-          presence_penalty: 0.1
+          presence_penalty: 0.1,
+          response_format: {
+  type: "json_schema",
+  json_schema: {
+    name: "gm_turn_response",
+    strict: true,
+    schema: {
+      type: "object",
+      properties: {
+        thinking: {
+          type: "string",
+          description: "Internal GM reasoning process before building the turn updates."
+        },
+        narrative: {
+          type: "string",
+          description: "Brief text resolution of the action presented to the player."
+        },
+        playerUpdates: {
+          type: "object",
+          description: "Map of client IDs to their status, inventory, and location state updates.",
+          additionalProperties: {
+            type: "object",
+            properties: {
+              hpDelta: { type: "integer" },
+              location: { type: "string" },
+              statsDelta: {
+                type: "object",
+                properties: {
+                  str: { type: "integer" },
+                  int: { type: "integer" },
+                  dex: { type: "integer" },
+                  cha: { type: "integer" }
+                },
+                required: ["str", "int", "dex", "cha"]
+              },
+              inventoryAdds: {
+                type: "object",
+                additionalProperties: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    qty: { type: "integer" }
+                  },
+                  required: ["name", "qty"]
+                }
+              },
+              inventoryRemoves: {
+                type: "object",
+                additionalProperties: {
+                  type: "object",
+                  properties: {
+                    qty: { type: "integer" }
+                  },
+                  required: ["qty"]
+                }
+              }
+            },
+            required: ["hpDelta", "location", "statsDelta", "inventoryAdds", "inventoryRemoves"]
+          }
+        }
+      },
+      required: ["thinking", "narrative"]
+    }
+  }
+}
         })
       });
 
