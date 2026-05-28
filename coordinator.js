@@ -54,7 +54,7 @@ export async function ensureRoomInit(room) {
   const locations = {
     village: { name: "Glen", summary: "A small dwarven-majority farming village in the east of Mistledale. Has a hidden elevator into the underdark somwhere in it, which is a secret of the local villagers who fear it may be used by evil to reach the surface." },
     forest: { name: "Beast Country", summary: "The western edge of mistledale. Suffers from a high population of various goblinoid tribes. Typicly avoided by most." },
-	ruins: { name: "Galath's Roost", summary: "The ruins of a abandoned bandit's camp rumored to hold great treasure. Originally founded by a bandit named galath, it is rumored his ghost still haunts the fortress." },
+	ruins: { name: "Galath's Roost", summary: "The ruins of a abandoned bandit's camp rumored to hold great treasure. Originally founded by a bandit named galath who died back when this camp was destroyed by local soldiers, it is rumored his ghost still haunts it. Typicly avoided by most." },
     abbey: { name: "Abbey of the Golden Sheaf", summary: "A walled abbey north of Ashenford. Sorrounded by lush agricultural fields. The main structure contains some granaries. Dedicated to the goddess of agriculture, Chauntea." },
     city: { name: "Ashabenford", summary: "A human-majority market town that sits right on the ashaba river. The local 'White Hart Inn' is famous and the bartender is a retired adventurer named 'Holfast Harpenshield'. Capital and center of mistledale." },
   };
