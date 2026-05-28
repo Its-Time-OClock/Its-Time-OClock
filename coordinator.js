@@ -52,11 +52,11 @@ export async function ensureRoomInit(room) {
   initializing = true;
   const worldSeed = `Mistledale`;
   const locations = {
-    village: { name: "Glen", summary: "A small dwarven farming village in the east of Mistledale. Has a unique elevator into the underdark, where the villagers farm mushrooms." },
-    forest: { name: "Beast Country", summary: "The western edge of mistledale. Suffers from a high population of goblinoids." },
-	ruins: { name: "Galath's Roost", summary: "A abandoned bandit's fortress rumored to hold great treasure. Originally founded by a bandit named galath, it is rumored his ghost still haunts the fortress." },
-    abbey: { name: "Abbey of the Golden Sheaf", summary: "A walled abbey north of Ashenford. Sorrounded by fields and has underground granaries. Dedicated to the goddess of agriculture, Chauntea." },
-    city: { name: "Ashabenford", summary: "A human-majority market town that sits right on the ashaba river. The local 'White Hart Inn' is famous. Capital and center of mistledale." },
+    village: { name: "Glen", summary: "A small dwarven-majority farming village in the east of Mistledale. Has a hidden elevator into the underdark somwhere in it, which is a secret of the local villagers who fear it may be used by evil to reach the surface." },
+    forest: { name: "Beast Country", summary: "The western edge of mistledale. Suffers from a high population of various goblinoid tribes. Typicly avoided by most." },
+	ruins: { name: "Galath's Roost", summary: "The ruins of a abandoned bandit's camp rumored to hold great treasure. Originally founded by a bandit named galath, it is rumored his ghost still haunts the fortress." },
+    abbey: { name: "Abbey of the Golden Sheaf", summary: "A walled abbey north of Ashenford. Sorrounded by lush agricultural fields. The main structure contains some granaries. Dedicated to the goddess of agriculture, Chauntea." },
+    city: { name: "Ashabenford", summary: "A human-majority market town that sits right on the ashaba river. The local 'White Hart Inn' is famous and the bartender is a retired adventurer named 'Holfast Harpenshield'. Capital and center of mistledale." },
   };
   try {
     const introResult = await generateIntro(worldSeed, locations, state.tunnelUrl, state.maxTokensIntro) || { text: `Welcome to ${worldSeed}.`, thought: "" };
