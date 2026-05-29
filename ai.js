@@ -20,7 +20,7 @@ Respond with your thinking process in <think> tags, followed by a single valid J
 
 STRICT SCHEMA:
 {
-  "narrative": "Brief resolution of the action.",
+  "narrative": "A resolution of the action describing the concequences (if present) of said action and the sorroundings. Intended to be immersive to the players.",
   "playerUpdates": {
     "CLIENT_ID_STRING": {
       "hpDelta": 0,
@@ -126,7 +126,7 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
                 properties: {
                   narrative: {
                     type: "string",
-                    description: "Resolution of the action presented to the player."
+                    description: "A resolution of the action describing the concequences (if present) of said action and the sorroundings. Should be immersive to the players."
                   },
                   playerUpdates: {
                     type: ["object", "null"],
