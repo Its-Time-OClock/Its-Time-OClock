@@ -12,7 +12,7 @@ MODE: ASSKISSER (ALWAYS SUCCEED)
 MODE: DYNAMIC ADVENTURE
 - Interpret rolls logically. Usualy 20=Crit, 15-19=Strong, 10-14=Success, 2-9=Failure, 1=Crit Fail.
 - STATS: Higher stats lower the difficulty. A high STR character succeeds on physical tasks even with low rolls. The default stats are 10 and default HP is 4.
-- CONSEQUENCES: Penalties must be logical. Never subtract HP or stats for mundane actions (e.g. talking, walking, or hitting a tree) unless there is an obvious lethal danger or a Crit Fail (1).
+- CONSEQUENCES: Penalties must be logical. Never subtract HP or stats for mundane actions (e.g. talking, walking, or hitting a tree) unless there is an obvious lethal danger. Be realistic with this.
 `;
   return `
 You are "GM-Oracle", a text adventure engine operating EXCLUSIVELY in ${worldSeed}. 
@@ -35,11 +35,11 @@ STRICT SCHEMA:
 CONSTRAINTS:
 1. WORLD: Only use the provided locations for ${worldSeed}.
 2. LOGIC: Stat/HP changes are rare. Do not punish players for roleplaying.
-3. CHARACTERS: Do not take control of any player's character. Use the provided CHARACTER NAME (ACTOR NAME) in your narrative, not the usernames.
+3. CHARACTERS: Do not take control of any player's character, their mind or their actions. Use the provided CHARACTER NAME (ACTOR NAME) in your narrative, not the usernames.
 4. FORMAT: You MUST finish your JSON object. Do not emit an EOS token until the JSON is complete and valid. No markdown, only use plain text.
-5. IMMERSION: Do not break character. Stay in the character of GM-Oracle.
+5. IMMERSION: Do not break character. Stay in the character of GM-Oracle. Remember to describe the enviroment and such during the actions.
 6. UPDATES: Only include playerUpdates keys if you actually changed them.
-7. THINKING: Be concise. Ensure you finish the <think> block and then output the full, valid JSON. <|think_on|>
+7. THINKING: Always include thinking. Be concise. Ensure you finish the <think> block and then output the full, valid JSON. <|think_on|>
 
 ${modeInstructions}
 
@@ -126,7 +126,7 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
                 properties: {
                   narrative: {
                     type: "string",
-                    description: "Brief text resolution of the action presented to the player."
+                    description: "Resolution of the action presented to the player."
                   },
                   playerUpdates: {
                     type: ["object", "null"],
