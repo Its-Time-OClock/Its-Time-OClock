@@ -99,7 +99,6 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
   
   let attempts = 0;
   const maxAttempts = 4;
-
   while (attempts < maxAttempts) {
     const messages = buildContextMessages(roomState, peers, presence, commandsBatch, attempts > 0);
     attempts++;
@@ -110,75 +109,81 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
         body: JSON.stringify({
           messages: messages,
           max_tokens: maxTokens,
-          temperature: 0.7 + (attempts * 0.1),
+          temperature: Math.min(0.7 + (attempts * 0.1), 0.95),
+          min_p: 0.05,
           top_p: 0.9,
           top_k: 50,
-          frequency_penalty: 0.2,
-          presence_penalty: 0.1,
+          repetition_penalty: 1.15,
+          reasoning_effort: "medium",
           response_format: {
-  type: "json_schema",
-  json_schema: {
-    name: "gm_turn_response",
-    strict: true,
-    schema: {
-      type: "object",
-      properties: {
-        thinking: {
-          type: "string",
-          description: "Internal GM reasoning process before building the turn updates."
-        },
-        narrative: {
-          type: "string",
-          description: "Brief text resolution of the action presented to the player."
-        },
-        playerUpdates: {
-          type: "object",
-          description: "Map of client IDs to their status, inventory, and location state updates.",
-          additionalProperties: {
-            type: "object",
-            properties: {
-              hpDelta: { type: "integer" },
-              location: { type: "string" },
-              statsDelta: {
+            type: "json_schema",
+            json_schema: {
+              name: "gm_turn_response",
+              strict: true,
+              schema: {
                 type: "object",
+                additionalProperties: false,
+                required: ["thinking", "narrative"],
                 properties: {
-                  str: { type: "integer" },
-                  int: { type: "integer" },
-                  dex: { type: "integer" },
-                  cha: { type: "integer" }
-                },
-                required: ["str", "int", "dex", "cha"]
-              },
-              inventoryAdds: {
-                type: "object",
-                additionalProperties: {
-                  type: "object",
-                  properties: {
-                    name: { type: "string" },
-                    qty: { type: "integer" }
+                  thinking: {
+                    type: "string",
+                    description: "Internal GM reasoning process before building the turn updates."
                   },
-                  required: ["name", "qty"]
-                }
-              },
-              inventoryRemoves: {
-                type: "object",
-                additionalProperties: {
-                  type: "object",
-                  properties: {
-                    qty: { type: "integer" }
+                  narrative: {
+                    type: "string",
+                    description: "Brief text resolution of the action presented to the player."
                   },
-                  required: ["qty"]
+                  playerUpdates: {
+                    type: ["object", "null"],
+                    description: "Map of client IDs to their status, inventory, and location state updates.",
+                    additionalProperties: {
+                      type: "object",
+                      additionalProperties: false,
+                      required: ["hpDelta", "location", "statsDelta", "inventoryAdds", "inventoryRemoves"],
+                      properties: {
+                        hpDelta: { type: "integer" },
+                        location: { type: "string" },
+                        statsDelta: {
+                          type: "object",
+                          additionalProperties: false,
+                          required: ["str", "int", "dex", "cha"],
+                          properties: {
+                            str: { type: "integer" },
+                            int: { type: "integer" },
+                            dex: { type: "integer" },
+                            cha: { type: "integer" }
+                          }
+                        },
+                        inventoryAdds: {
+                          type: "object",
+                          additionalProperties: {
+                            type: "object",
+                            additionalProperties: false,
+                            required: ["name", "qty"],
+                            properties: {
+                              name: { type: "string" },
+                              qty: { type: "integer" }
+                            }
+                          }
+                        },
+                        inventoryRemoves: {
+                          type: "object",
+                          additionalProperties: {
+                            type: "object",
+                            additionalProperties: false,
+                            required: ["qty"],
+                            properties: {
+                              qty: { type: "integer" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
-            },
-            required: ["hpDelta", "location", "statsDelta", "inventoryAdds", "inventoryRemoves"]
+            }
           }
-        }
-      },
-      required: ["thinking", "narrative"]
-    }
-  }
-}
         })
       });
 
