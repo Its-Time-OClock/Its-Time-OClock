@@ -20,7 +20,6 @@ Respond with your thinking process in <think> tags, followed by a single valid J
 
 STRICT SCHEMA:
 {
-  "thinking": "Your internal GM reasoning process goes here.",
   "narrative": "Brief resolution of the action.",
   "playerUpdates": {
     "CLIENT_ID_STRING": {
@@ -113,7 +112,7 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
           min_p: 0.05,
           top_p: 0.9,
           top_k: 50,
-          repetition_penalty: 1.15,
+          repetition_penalty: 1.25,
           reasoning_effort: "low",
           response_format: {
             type: "json_schema",
@@ -123,12 +122,8 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
               schema: {
                 type: "object",
                 additionalProperties: false,
-                required: ["thinking", "narrative"],
+                required: ["narrative"],
                 properties: {
-                  thinking: {
-                    type: "string",
-                    description: "Internal GM reasoning process before building the turn updates."
-                  },
                   narrative: {
                     type: "string",
                     description: "Brief text resolution of the action presented to the player."
