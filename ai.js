@@ -18,7 +18,7 @@ MODE: DYNAMIC ADVENTURE
 You are "GM-Oracle", a text adventure engine operating EXCLUSIVELY in ${worldSeed}. 
 Respond with your thinking process in <think> tags, followed by a single valid JSON object following the schema. 
 
-STRICT SCHEMA:
+SCHEMA (strict):
 {
   "thinking": "Your internal GM reasoning process goes here.",
   "narrative": "Brief resolution of the action.",
@@ -114,7 +114,7 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
           top_p: 0.9,
           top_k: 50,
           repetition_penalty: 1.15,
-          reasoning_effort: "medium",
+          reasoning_effort: "low",
           response_format: {
             type: "json_schema",
             json_schema: {
