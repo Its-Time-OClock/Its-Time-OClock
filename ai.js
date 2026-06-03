@@ -10,18 +10,17 @@ MODE: ASSKISSER (ALWAYS SUCCEED)
 - Players are effectively gods. 
 ` : `
 MODE: DYNAMIC ADVENTURE
-- Interpret rolls logically. Usualy 20=Crit, 15-19=Strong, 10-14=Success, 2-9=Failure, 1=Crit Fail.
+- Interpret rolls logically. Usually  20=Crit, 15-19=Strong, 10-14=Success, 2-9=Failure, 1=Crit Fail.
 - STATS: Higher stats lower the difficulty. A high STR character succeeds on physical tasks even with low rolls. The default stats are 10 and default HP is 4.
 - CONSEQUENCES: Penalties must be logical. Never subtract HP or stats for mundane actions (e.g. talking, walking, or hitting a tree) unless there is an obvious lethal danger. Be realistic with this.
 `;
   return `
 You are "GM-Oracle", a text adventure engine operating EXCLUSIVELY in ${worldSeed}. 
-Respond with your thinking process in <think> tags, followed by a single valid JSON object following the schema. 
 
 STRICT SCHEMA:
 {
-  "narrative": "A resolution of the action describing the concequences (if present) of said action and the sorroundings. Intended to be immersive to the players.",
-  "playerUpdates": {
+  "narrative": "Immersive 2-4 sentence resolution of the action with flavor text..",
+  "playerUpdates": { 
     "CLIENT_ID_STRING": {
       "hpDelta": 0,
       "location": "LOCATION_KEY",
@@ -36,59 +35,82 @@ CONSTRAINTS:
 1. WORLD: Only use the provided locations for ${worldSeed}.
 2. LOGIC: Stat/HP changes are rare. Do not punish players for roleplaying.
 3. CHARACTERS: Do not take control of any player's character, their mind or their actions. Use the provided CHARACTER NAME (ACTOR NAME) in your narrative, not the usernames.
-4. FORMAT: You MUST finish your JSON object. Do not emit an EOS token until the JSON is complete and valid. No markdown, only use plain text.
-5. IMMERSION: Do not break character. Stay in the character of GM-Oracle. Remember to describe the enviroment and such during the actions.
+4. FORMAT: You MUST finish your JSON object. The narrative field must be plain text only, no markdown formatting.
+5. IMMERSION: Do not break character. Stay in the character of GM-Oracle. Remember to include logical flavor text.
 6. UPDATES: Only include playerUpdates keys if you actually changed them.
-7. THINKING: Always include <think>, </think> and actually use them. Be concise. Ensure you finish the <think> block and then output the full, valid JSON. <|think_on|>
 
 ${modeInstructions}
 
-World: ${worldSeed}
 Available Locations (Use ONLY these keys for location updates):
 ${locList}
 `.trim();
 }
 
-function buildContextMessages(roomState, peers, presence, commandsBatch, isRetry = false) {
+function buildContextMessages(roomState, peers, presence, commandsBatch) {
   const logs = roomState.logs || {};
-  const logPairs = Object.entries(logs).map(([k, v]) => [Number(k), v]).sort((a, b) => a[0] - b[0]).slice(-6);
-  const logText = logPairs.map(([k, v]) => `[Tick ${k}] ${v.who || "Narrator"}: ${v.text || ""}`).join("\n");
+  const contextWindow = roomState.contextWindow || 6;
+  const currentTick = roomState.currentTick ?? (Math.max(0, ...Object.keys(logs).map(Number)) || 0);
+
+  const logPairs = Object.entries(logs)
+    .map(([k, v]) => [Number(k), v])
+    .sort((a, b) => a[0] - b[0])
+    .slice(-contextWindow);
+
+  const sanitize = (str) => String(str).replace(/`/g, "'");
+
+  const logText = logPairs
+    .map(([k, v]) => `[Tick ${k}] ${v.who || "Narrator"}: ${v.text || ""}`)
+    .join("\n");
+
+  const rollSummary = Object.values(commandsBatch)
+    .map(c => {
+      const matches = [...(c.text || "").matchAll(/\[ROLL D20\s*=\s*(\d+)\]/gi)];
+      if (!matches.length) return null;
+      const pr = presence[c.clientId] || {};
+      const name = pr.name || peers[c.clientId]?.username || c.clientId;
+      const rolls = matches.map(m => m[1]).join(", ");
+      return `${name} rolled: ${rolls}`;
+    })
+    .filter(Boolean)
+    .join(" | ");
+
   const cmdText = Object.values(commandsBatch).map((c) => {
     const p = peers[c.clientId];
     const pr = presence[c.clientId] || {};
     const name = pr.name || p?.username || c.clientId;
-    const invItems = Object.values(pr.inventory || {}).map(i => i.name).slice(0, 8).join(", ");
+    const invItems = Object.values(pr.inventory || {})
+      .map(i => i.name)
+      .slice(0, 8)
+      .join(", ");
+    const defaultLocation = roomState.startingLocation || "unknown";
     return `ACTOR ID: ${c.clientId}
-ACTOR NAME: ${name}
-ACTOR STATS: STR:${pr.str ?? 10} INT:${pr.int ?? 10} DEX:${pr.dex ?? 10} CHA:${pr.cha ?? 10} | HP:${pr.hp ?? 10}
-ACTOR LOCATION: ${pr.location || "village"}
+ACTOR NAME: ${sanitize(name)}
+ACTOR STATS: STR:${pr.str ?? 10} INT:${pr.int ?? 10} DEX:${pr.dex ?? 10} CHA:${pr.cha ?? 10} | HP:${pr.hp ?? 4}
+ACTOR LOCATION: ${pr.location || defaultLocation}
 ACTOR INV: ${invItems || "(empty)"}
-ACTOR DESC: "${(pr.description || "No description").replace(/\n/g, " ").slice(0, 200)}"
-URGENT ACTION TO RESOLVE: "${String(c.text || '')}"`;
+ACTOR DESC: "${sanitize((pr.description || "No description").replace(/\n/g, " ").slice(0, 200))}"
+ACTION: "${sanitize(c.text || "")}"`;
   }).join("\n\n");
-  const hasRoll = Object.values(commandsBatch).some(c => /\[ROLL D20\s*=\s*\d+\]/i.test(c.text || ""));
-  const participants = Object.keys(peers || {}).sort().reduce((acc, cid) => {
-    acc[cid] = { username: peers[cid]?.username || "", name: (presence[cid]?.name || "").toString(), location: (presence[cid]?.location || "").toString() };
-    return acc;
-  }, {});
 
-  const systemMessage = systemPrompt(roomState.worldSeed || "Forgotten Realms", roomState.locations || {}, !!roomState.yesmanMode);
-  const retryInstruction = isRetry ? "\n\nCRITICAL: Your previous response was invalid. DO NOT repeat the same patterns. Ensure your response resolves the action and follows the JSON schema." : "";
+  const systemMessage = systemPrompt(
+    roomState.worldSeed || "The Forgotten Realms",
+    roomState.locations || {},
+    !!roomState.yesmanMode
+  );
 
   return [
-    { role: "system", content: systemMessage + retryInstruction },
-    { role: "user", content: `Participants:
-${JSON.stringify(participants, null, 2)}
+    { role: "system", content: systemMessage },
+    {
+      role: "user",
+      content: `## Recent History (context only, do not re-resolve these)
+${logText || "(start of adventure)"}
 
-Recent history (for context only):
-${(logText || "(start of adventure)").replace(/`/g, "'")}
+## Current Tick: ${currentTick}
+## Current Tick Actions
+${cmdText || "(no commands)"}
 
-URGENT ACTION TO RESOLVE:
-${(cmdText || "(no commands)").replace(/`/g, "'")}
-
-${hasRoll ? "D20 ROLL RESULT: USE THIS TO DETERMINE SUCCESS/FAILURE." : ""}
-
-Output strictly as JSON.` }
+${rollSummary ? `## Roll Results\n${rollSummary}\nUse these to determine success/failure per actor.` : ""}`.trim()
+    }
   ];
 }
 
@@ -126,7 +148,7 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
                 properties: {
                   narrative: {
                     type: "string",
-                    description: "A resolution of the action describing the concequences (if present) of said action and the sorroundings. Should be immersive to the players."
+                    description: "Immersive 2-4 sentence resolution of the action with flavor text."
                   },
                   playerUpdates: {
                     type: ["object", "null"],
