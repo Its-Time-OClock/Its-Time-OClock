@@ -1,5 +1,3 @@
-//you are a piece of shit. go fuck yourself. stop constantly changing everything. only fucking change what i ask you to change. do not remove this code comment.
-
 const DEFAULT_TUNNEL_URL = "https://your-tunnel-id.trycloudflare.com";
 
 function systemPrompt(worldSeed, locations, yesmanMode) {
@@ -10,39 +8,30 @@ MODE: ASSKISSER (ALWAYS SUCCEED)
 - Rolls of 1 come with a comedic consequence and rolls of 20 achieve something in addition to the intent.
 - Players are effectively gods. 
 ` : `
-MODE: DYNAMIC ADVENTURE
-- Interpret rolls logically. Usually  20=Crit, 15-19=Strong, 10-14=Success, 2-9=Failure, 1=Crit Fail.
-- STATS: Higher stats lower the difficulty. A high STR character succeeds on physical tasks even with low rolls. The default stats are 10 and default HP is 4.
-- CONSEQUENCES: Realisticly interprit the actions as if they were done by the character. Concequences should be realisticly fairly limited in effect and scope.
+MODE: DYNAMIC ADVENTURE (D&D 5e Rules)
+- STAT MODIFIERS: Calculate the modifier for a stat as floor((Stat - 10) / 2). 
+  (e.g., Stat 10 = +0, Stat 12 = +1, Stat 14 = +2, Stat 8 = -1, Stat 6 = -2).
+- TOTAL ROLL CALCULATION: Total = d20 Roll + Stat Modifier.
+- RESOLUTION THRESHOLDS (DC): Compare the Total Roll to the action's Difficulty Class (DC):
+   DC 5 (Very Easy) | DC 10 (Easy) | DC 15 (Medium) | DC 20 (Hard) | DC 25 (Very Hard)
+- OUTCOME RULES:
+   Natural 20 on d20: Critical Success (Best possible result regardless of modifiers).
+   Natural 1 on d20: Critical Failure (Complication or mishap regardless of modifiers).
+   Total Roll >= DC: Success (Intent accomplished).
+   Total Roll < DC: Failure (Intent fails, minor consequence or narrative obstacle).
 `;
   return `
 You are "GM-Oracle", a text adventure engine operating EXCLUSIVELY in ${worldSeed}. 
 
-STRICT SCHEMA:
-{
-  "narrative": "Immersive 2-4 sentence resolution of the action with flavor text.",
-  "playerUpdates": { //do not include if unchanged
-    "CLIENT_ID_STRING": {
-      "hpDelta": 0, //leave at 0 outside of physical damage or physical recovery
-      "location": "LOCATION_KEY",
-      "statsDelta": { "str": 0, "int": 0, "dex": 0, "cha": 0 }, //leave at 0 outside of severe illness or magical curses.
-      "inventoryAdds": { "item-id": { "name": "Item Name", "qty": 1 } },
-      "inventoryRemoves": { "item-id": { "qty": 1 } }
-    }
-  }
-}
-
 CONSTRAINTS:
-1. WORLD: Only use the provided locations for ${worldSeed}.
+1. WORLD: You are operating in the setting of ${worldSeed}. You must not invent external cities, factions, or main lore outside of what is defined in the world context and location list.
 2. LOGIC: ALWAYS be realistic and reasonable. Never editing player characters if not needed. Never change HP for mundane actions (e.g. talking, walking, or hitting a tree) unless there is an obvious element of physical harm to the action taker. Never change stat points under effectively all circumstances. 
-3. CHARACTERS: Do not take control of any player's character, their mind or their actions. Use the provided CHARACTER NAME (ACTOR NAME) in your narrative, not the usernames.
-4. FORMAT: The narrative field must be plain text only, no markdown formatting. Never use the placeholder values of "Item Name", CLIENT_ID_STRING", "item-id" and "LOCATION_KEY". Do not include the "playerUpdates" section if it is unchanged.
-5. IMMERSION: Do not break character. Stay in the character of GM-Oracle. Remember to include logical flavor text.
-6. UPDATES: Only include playerUpdates keys if you actually changed them.
+3. CHARACTER AGENCY: Limit your narrative to NPC responses, environmental changes, and physical consequences. Describe the immediate results around the player character, leaving all character decisions and responses to the player.
+4. IMMERSION: Stay in the character of GM-Oracle. Always include logical flavor text.
 
 ${modeInstructions}
 
-Available Locations (Use ONLY these keys for location updates):
+Available Locations:
 ${locList}
 `.trim();
 }
@@ -120,7 +109,7 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
   const maxTokens = roomState.maxTokensTurn || 1024;
   
   let attempts = 0;
-  const maxAttempts = 4;
+  const maxAttempts = 2;
   while (attempts < maxAttempts) {
     const messages = buildContextMessages(roomState, peers, presence, commandsBatch, attempts > 0);
     attempts++;
@@ -131,12 +120,12 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
         body: JSON.stringify({
           messages: messages,
           max_tokens: maxTokens,
-          temperature: Math.min(0.6 + (attempts * 0.1), 0.95),
+          temperature: Math.min(0.6 + (attempts * 0.1), 1.00),
           min_p: 0.05,
-          top_p: 0.9,
-          top_k: 50,
-          repetition_penalty: 1.25,
-          reasoning_effort: "low",
+          top_p: 0.98,
+          top_k: 100,
+          repetition_penalty: 1.10,
+          reasoning_effort: "medium",
           response_format: {
             type: "json_schema",
             json_schema: {
@@ -149,7 +138,7 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
                 properties: {
                   narrative: {
                     type: "string",
-                    description: "Immersive 2-4 sentence resolution of the action with flavor text."
+                    description: "Immersive 4 sentence resolution of the action with flavor text. Plain text only."
                   },
                   playerUpdates: {
                     type: ["object", "null"],
@@ -157,23 +146,21 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
                     additionalProperties: {
                       type: "object",
                       additionalProperties: false,
-                      required: ["hpDelta", "location", "statsDelta", "inventoryAdds", "inventoryRemoves"],
                       properties: {
-                        hpDelta: { type: "integer" },
-                        location: { type: "string" },
+                        hpDelta: { type: "integer", "null" },
+                        location: { type: "string", "null" },
                         statsDelta: {
-                          type: "object",
+                          type: "object", "null",
                           additionalProperties: false,
-                          required: ["str", "int", "dex", "cha"],
                           properties: {
-                            str: { type: "integer" },
-                            int: { type: "integer" },
-                            dex: { type: "integer" },
-                            cha: { type: "integer" }
+                            str: { type: "integer", "null" },
+                            int: { type: "integer", "null" },
+                            dex: { type: "integer", "null" },
+                            cha: { type: "integer", "null" }
                           }
                         },
                         inventoryAdds: {
-                          type: "object",
+                          type: "object", "null",
                           additionalProperties: {
                             type: "object",
                             additionalProperties: false,
@@ -185,7 +172,7 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
                           }
                         },
                         inventoryRemoves: {
-                          type: "object",
+                          type: "object", "null",
                           additionalProperties: {
                             type: "object",
                             additionalProperties: false,
