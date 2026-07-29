@@ -147,20 +147,20 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
                       type: "object",
                       additionalProperties: false,
                       properties: {
-                        hpDelta: { type: "integer", "null" },
-                        location: { type: "string", "null" },
+                        hpDelta: { type: ["integer", "null"] },
+                        location: { type: ["string", "null"] },
                         statsDelta: {
-                          type: "object", "null",
+                          type: ["object", "null"],
                           additionalProperties: false,
                           properties: {
-                            str: { type: "integer", "null" },
-                            int: { type: "integer", "null" },
-                            dex: { type: "integer", "null" },
-                            cha: { type: "integer", "null" }
+                            str: { type: ["integer", "null"] },
+                            int: { type: ["integer", "null"] },
+                            dex: { type: ["integer", "null"] },
+                            cha: { type: ["integer", "null"] }
                           }
                         },
                         inventoryAdds: {
-                          type: "object", "null",
+                          type: ["object", "null"],
                           additionalProperties: {
                             type: "object",
                             additionalProperties: false,
@@ -172,7 +172,7 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
                           }
                         },
                         inventoryRemoves: {
-                          type: "object", "null",
+                          type: ["object", "null"],
                           additionalProperties: {
                             type: "object",
                             additionalProperties: false,
@@ -251,9 +251,8 @@ export async function generateIntro(worldSeed, locations, tunnelUrl = DEFAULT_TU
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         messages: [
-          { role: "system", content: "You are 'GM-Oracle', an evocative text adventure engine. You may use <think> tags for reasoning." },
-          { role: "user", content: `Please provide an immersive introduction for a new adventure. Do not use highlights or markdown, use plain text only. 
-IMPORTANT: Ensure you complete your thought and your narrative. Do not stop until the story introduction is finished.
+          { role: "system", content: "You are 'GM-Oracle', an evocative text adventure engine." },
+          { role: "user", content: `Please provide an immersive introduction for a new adventure. Use plain text only. 
 
 Structure:
 1. Setting: Describe the atmosphere, current events and current state of the region (4 sentences).
