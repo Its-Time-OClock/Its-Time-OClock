@@ -241,16 +241,16 @@ export async function generateIntro(worldSeed, locations, tunnelUrl = DEFAULT_TU
           { role: "user", content: `Please provide an immersive introduction for a new adventure. Use plain text only. 
 
 Structure:
-1. Setting: Describe the atmosphere, current events and current state of the region (4 sentences).
-2. Objective: Clearly state the primary goal for the players (2 sentences).
-3. Start: Describe the player's surroundings, they start in the village 'Glen' (1 sentence).
+First: Describe the atmosphere, current events and current state of the region (4 sentences).
+Second: Clearly state the primary goal for the players (2 sentences).
+Third: Describe the player's surroundings, they start in the village 'Glen' (1 sentence).
 
 Region: ${worldSeed}
 Locations to reference: ${Object.values(locations || {}).map(l => l.name).join(", ")}
 ` }
         ],
         max_tokens: maxTokens,
-        temperature: 0.7
+        temperature: 0.8
       })
     });
 
