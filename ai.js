@@ -126,6 +126,7 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
           top_k: 100,
           repetition_penalty: 1.10,
           reasoning_effort: "medium",
+          encapsulate_thinking: true,
           response_format: {
             type: "json_schema",
             json_schema: {
@@ -134,15 +135,19 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
               schema: {
                 type: "object",
                 additionalProperties: false,
-                required: ["narrative"],
+                required: ["thought", "narrative"],
                 properties: {
+                  thought: {
+                    type: "string",
+                    description: "What happens and why, then any dice math if needed. Write this before the narrative."
+                  },
                   narrative: {
                     type: "string",
-                    description: "Immersive 4 sentence resolution of the action with flavor text. Plain text only."
+                    description: "Exactly 5 sentences of narrative prose resolving the action."
                   },
                   playerUpdates: {
                     type: ["object", "null"],
-                    description: "Map of client IDs to their status, inventory, and location state updates.",
+                    description: "Map of client IDs to their status, inventory, and location state.",
                     additionalProperties: {
                       type: "object",
                       additionalProperties: false,
@@ -194,44 +199,25 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      let content = data.choices[0].message.content || "";
-      let thought = "";
-
-      if (content.includes('<think>')) {
-        const parts = content.split('<think>');
-        for (let i = 1; i < parts.length; i++) {
-          const innerParts = parts[i].split('</think>');
-          thought += innerParts[0].trim() + "\n";
-        }
-        content = content.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, "").trim();
-      }
-
+      const message = data.choices[0].message;
+      let content = message.content || "";
+      const thought = message.reasoning_content || "";
+      
       const jsonStart = content.indexOf('{');
       const jsonEnd = content.lastIndexOf('}');
-      
       let result;
       if (jsonStart !== -1) {
         const jsonCandidate = jsonEnd !== -1 ? content.substring(jsonStart, jsonEnd + 1) : content.substring(jsonStart);
-        try {
-          result = JSON.parse(jsonCandidate);
-        } catch (parseError) {
-          if (thought.trim()) {
-            throw new Error("Model truncated or produced invalid JSON after thinking.");
-          }
-          throw parseError;
-        }
-      } else if (thought.trim()) {
-        throw new Error("Model stopped during or after thinking without providing JSON.");
+        result = JSON.parse(jsonCandidate);
       } else {
         result = JSON.parse(content);
       }
       
       if (!result.narrative || typeof result.narrative !== 'string') throw new Error("Missing narrative.");
-
       result.playerUpdates = result.playerUpdates && typeof result.playerUpdates === "object" ? result.playerUpdates : undefined;
       
       if (thought.trim()) {
-        result.thought = thought.trim();
+      result.thought = thought.trim();
       }
       return result;
     } catch (e) {
@@ -244,7 +230,7 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
   }
 }
 
-export async function generateIntro(worldSeed, locations, tunnelUrl = DEFAULT_TUNNEL_URL, maxTokens = 512) {
+export async function generateIntro(worldSeed, locations, tunnelUrl = DEFAULT_TUNNEL_URL, maxTokens = 1024) {
   try {
     const response = await fetch(`${tunnelUrl}/v1/chat/completions`, {
       method: "POST",
