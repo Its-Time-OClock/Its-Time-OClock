@@ -238,7 +238,6 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
 
 export async function generateIntro(worldSeed, locations, tunnelUrl = DEFAULT_TUNNEL_URL, maxTokens = 1024) {
   try {
-    // Format the location data so the model sees both names and summaries
     const locationDetails = Object.values(locations || {})
       .map(loc => `- ${loc.name}: ${loc.summary}`)
       .join("\n");
@@ -251,7 +250,7 @@ export async function generateIntro(worldSeed, locations, tunnelUrl = DEFAULT_TU
           { role: "system", content: "You are 'GM-Oracle', an evocative text adventure engine." },
           { role: "user", content: `Please provide an immersive introduction for a new adventure. Use plain text only. 
 
-Structure:
+Structure (subtle, do not title anything):
 First: Describe the atmosphere, current events and current state of the region (4 sentences).
 Second: Clearly state the primary goal for the players (2 sentences).
 Third: Describe the player's surroundings, they start in the village 'Glen' (1 sentence).
