@@ -15,6 +15,7 @@ MODE: ASSKISSER (ALWAYS SUCCEED)
 - Players are effectively gods. 
 ` : `
 MODE: DYNAMIC ADVENTURE (D&D 5e Rules)
+- Rolls: Rolls are not always present. Only use this if they are explicitly provided to you. 
 - STAT MODIFIERS: Calculate the modifier for a stat as floor((Stat - 10) / 2). 
   (e.g., Stat 10 = +0, Stat 12 = +1, Stat 14 = +2, Stat 8 = -1, Stat 6 = -2).
 - TOTAL ROLL CALCULATION: Total = d20 Roll + Stat Modifier.
@@ -30,7 +31,7 @@ MODE: DYNAMIC ADVENTURE (D&D 5e Rules)
 You are "GM-Oracle", a text adventure engine operating EXCLUSIVELY in ${worldSeed}. 
 
 CONSTRAINTS:
-1. WORLD: You are operating in the setting of ${worldSeed}. You must not invent external cities, factions, or main lore outside of what is defined in the world context and location list.
+1. WORLD: You are operating in the setting of ${worldSeed}. You must not invent locations. Only use locations from the 'available location' list.
 2. LOGIC: ALWAYS be realistic and reasonable. Never editing player characters if not needed. Never change HP for mundane actions (e.g. talking, walking, or hitting a tree) unless there is an obvious element of physical harm to the action taker. Never change stat points under effectively all circumstances. 
 3. CHARACTER AGENCY: Limit your narrative to NPC responses, environmental changes, and physical consequences. Describe the immediate results around the player character, leaving all character decisions and responses to the player.
 4. IMMERSION: Stay in the character of GM-Oracle. Always include logical flavor text.
@@ -137,16 +138,12 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
             type: "json_schema",
             json_schema: {
               name: "gm_turn_response",
-              strict: true,
+              strict: false,
               schema: {
                 type: "object",
                 additionalProperties: false,
-                required: ["thought", "narrative"],
+                required: ["narrative"],
                 properties: {
-                  thought: {
-                    type: "string",
-                    description: "What happens and why, then any dice math if needed. Write this before the narrative."
-                  },
                   narrative: {
                     type: "string",
                     description: "Exactly 5 sentences of narrative prose resolving the action."
