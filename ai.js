@@ -1,7 +1,13 @@
 const DEFAULT_TUNNEL_URL = "https://your-tunnel-id.trycloudflare.com";
 
 function systemPrompt(worldSeed, locations, yesmanMode) {
-  const locList = Object.entries(locations || {}).map(([id, l]) => `- KEY: "${id}" | NAME: "${l.name}" | DESC: "${l.summary}"`).join("\n");
+  const locList = Object.entries(locations || {})
+    .map(([id, l]) => {
+    const cleanDesc = (l.summary || "").replace(/"/g, "'");
+    const cleanName = (l.name || "").replace(/"/g, "'");
+    return `- KEY: "${id}" | NAME: "${cleanName}" | DESC: "${cleanDesc}"`;
+  })
+  .join("\n");
   const modeInstructions = yesmanMode ? `
 MODE: ASSKISSER (ALWAYS SUCCEED)
 - Fulfill every intent completely. Never deny an action.
@@ -232,6 +238,11 @@ export async function generateTurn(roomState, peers, presence, commandsBatch) {
 
 export async function generateIntro(worldSeed, locations, tunnelUrl = DEFAULT_TUNNEL_URL, maxTokens = 1024) {
   try {
+    // Format the location data so the model sees both names and summaries
+    const locationDetails = Object.values(locations || {})
+      .map(loc => `- ${loc.name}: ${loc.summary}`)
+      .join("\n");
+
     const response = await fetch(`${tunnelUrl}/v1/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -246,8 +257,8 @@ Second: Clearly state the primary goal for the players (2 sentences).
 Third: Describe the player's surroundings, they start in the village 'Glen' (1 sentence).
 
 Region: ${worldSeed}
-Locations to reference: ${Object.values(locations || {}).map(l => l.name).join(", ")}
-` }
+Known Locations & Context:
+${locationDetails}` }
         ],
         max_tokens: maxTokens,
         temperature: 0.8
@@ -272,6 +283,6 @@ Locations to reference: ${Object.values(locations || {}).map(l => l.name).join("
     return { text: content, thought };
   } catch (e) {
     console.error("AI Intro Gen Failed:", e);
-    return `Welcome to the lands of ${worldSeed}.`;
+    return { text: `Welcome to the lands of ${worldSeed}.`, thought: "" };
   }
 }
